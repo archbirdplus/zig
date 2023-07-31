@@ -210,6 +210,9 @@ pub const mach_header_64 = macho.mach_header_64;
 pub const mach_header = macho.mach_header;
 
 pub const _errno = __error;
+pub const _SC = struct {
+    pub const PAGESIZE = 29;
+};
 
 pub extern "c" fn @"close$NOCANCEL"(fd: fd_t) c_int;
 pub extern "c" fn mach_host_self() mach_port_t;
