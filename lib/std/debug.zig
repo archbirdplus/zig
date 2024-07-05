@@ -679,9 +679,9 @@ pub const StackIterator = struct {
         // We are unable to determine validity of memory for freestanding targets
         if (native_os == .freestanding or native_os == .uefi) return true;
 
-        const aligned_address = address & ~@as(usize, @intCast((mem.page_size - 1)));
+        const aligned_address = address & ~@as(usize, @intCast((mem.pageSize() - 1)));
         if (aligned_address == 0) return false;
-        const aligned_memory = @as([*]align(mem.page_size) u8, @ptrFromInt(aligned_address))[0..mem.page_size];
+        const aligned_memory = @as([*]align(mem.page_size) u8, @ptrFromInt(aligned_address))[0..mem.pageSize()];
 
         if (native_os == .windows) {
             var memory_info: windows.MEMORY_BASIC_INFORMATION = undefined;
@@ -1473,7 +1473,7 @@ fn printLineFromFileAnyOs(out_stream: anytype, line_info: LineInfo) !void {
     defer f.close();
     // TODO fstat and make sure that the file has the correct size
 
-    var buf: [mem.page_size]u8 = undefined;
+    var buf: [mem.page_size]u8 align(mem.page_size) = undefined;
     var amt_read = try f.read(buf[0..]);
     const line_start = seek: {
         var current_line_start: usize = 0;
