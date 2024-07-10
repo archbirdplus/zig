@@ -3184,7 +3184,7 @@ pub const MachTask = extern struct {
         return left;
     }
 
-    fn getPageSize(task: MachTask) MachError!usize {
+    pub fn getPageSize(task: MachTask) MachError!usize {
         if (task.isValid()) {
             var info_count = TASK_VM_INFO_COUNT;
             var vm_info: task_vm_info_data_t = undefined;
