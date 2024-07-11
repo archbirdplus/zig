@@ -42,6 +42,8 @@ pub usingnamespace switch (native_os) {
     .openbsd => @import("c/openbsd.zig"),
     .haiku => @import("c/haiku.zig"),
     .solaris, .illumos => @import("c/solaris.zig"),
+    .fuchsia => @import("c/fuchsia.zig"),
+    .minix => @import("c/minix.zig"),
     .emscripten => @import("c/emscripten.zig"),
     .wasi => wasi,
     else => struct {},
