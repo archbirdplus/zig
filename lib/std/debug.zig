@@ -679,7 +679,7 @@ pub const StackIterator = struct {
 
             // The only error this function can throw is ERROR_INVALID_PARAMETER.
             // supply an address that invalid i'll be thrown.
-            const rc = windows.VirtualQuery(aligned_memory, &memory_info, aligned_memory.len) catch {
+            const rc = windows.VirtualQuery(@ptrCast(aligned_memory), &memory_info, aligned_memory.len) catch {
                 return false;
             };
 
