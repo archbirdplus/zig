@@ -370,7 +370,7 @@ pub fn initStaticTLS(phdrs: []elf.Phdr) void {
             0,
         );
         if (@as(isize, @bitCast(begin_addr)) < 0) @trap();
-        const alloc_tls_area: [*]align(mem.page_size) u8 = @ptrFromInt(begin_addr);
+        const alloc_tls_area: [*]align(heap.page_size) u8 = @ptrFromInt(begin_addr);
 
         // Make sure the slice is correctly aligned.
         const begin_aligned_addr = alignForward(begin_addr, tls_image.alloc_align);
