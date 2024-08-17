@@ -8,16 +8,15 @@ const c = std.c;
 const Allocator = std.mem.Allocator;
 const windows = std.os.windows;
 
-const page_size_os_arch_unsupported = @compileError("The Zig standard library is missing page_size definitions for the target architecture/OS");
-const page_size_os_unsupported = @compileError("The Zig standard library is missing page_size definitions for the target OS");
-const page_size_query_unsupported = @compileError("The Zig standard library is missing support for querying page size on this OS");
+const missing_max_page_size = @compileError("The Zig standard library is missing a max_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
+const missing_min_page_size = @compileError("The Zig standard library is missing a min_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 
 /// This value defines the largest page size for this architecture/OS combination that the standard library allows. The standard library asserts that the `pageSize()` does not exceed `max_page_size`. To allow larger page sizes, override `max_page_size` as well as `-z max-page-size`.
 pub const max_page_size: usize = switch (builtin.os.tag) {
     .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
-        else => page_size_os_arch_unsupported,
+        else => missing_max_page_size,
     },
     // -- <https://devblogs.microsoft.com/oldnewthing/20210510-00/?p=105200>
     .windows => switch (builtin.cpu.arch) {
@@ -28,10 +27,11 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         // DEC Alpha => 8 << 10,
         // Itanium => 8 << 10,
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
-        else => page_size_os_arch_unsupported,
+        else => missing_max_page_size,
     },
     .wasi => switch (builtin.cpu.arch) {
         .wasm32, .wasm64 => 64 << 10,
+        else => missing_max_page_size,
     },
     // TODO: freestanding, uefi, freebsd, netbsd, dragonfly, openbsd
     .linux => switch (builtin.cpu.arch) {
@@ -53,9 +53,9 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .riscv32, .riscv64 => 4 << 10,
         .sparc => 256 << 10,
         .sparc64 => 64 << 10,
-        else => page_size_os_arch_unsupported,
+        else => missing_max_page_size,
     },
-    else => page_size_os_unsupported,
+    else => missing_max_page_size,
 };
 
 /// Compile time minimum page size that the architecture/OS combination supports. Pointers aligned to the system's page size are aligned to at least `min_page_size`, but system calls such as `mmap` and `VirtualAlloc` may return pointers with much larger alignments.
@@ -63,7 +63,7 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
     .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
-        else => page_size_os_arch_unsupported,
+        else => missing_min_page_size,
     },
     // -- <https://devblogs.microsoft.com/oldnewthing/20210510-00/?p=105200>
     .windows => switch (builtin.cpu.arch) {
@@ -74,10 +74,11 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         // DEC Alpha => 8 << 10,
         // Itanium => 8 << 10,
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
-        else => page_size_os_arch_unsupported,
+        else => missing_min_page_size,
     },
     .wasi => switch (builtin.cpu.arch) {
         .wasm32, .wasm64 => 64 << 10,
+        else => missing_min_page_size,
     },
     .linux => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
@@ -98,9 +99,9 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .riscv32, .riscv64 => 4 << 10,
         .sparc => 4 << 10,
         .sparc64 => 8 << 10,
-        else => page_size_os_arch_unsupported,
+        else => missing_min_page_size,
     },
-    else => page_size_os_unsupported,
+    else => missing_min_page_size,
 };
 
 var runtime_page_size = std.atomic.Value(usize).init(0);
@@ -128,7 +129,7 @@ fn queryPageSize() usize {
         .linux => if (builtin.link_libc) @intCast(std.c.sysconf(std.c._SC.PAGESIZE)) else std.os.linux.getauxval(std.elf.AT_PAGESZ),
         .driverkit, .ios, .macos, .tvos, .visionos, .watchos => blk: {
             if (!builtin.link_libc)
-                @compileError("querying page size on this platform is not supported without linking libc");
+                @compileError("querying page size on Darwin is not supported without linking libc");
             const task_port = std.c.mach_task_self();
             // This may fail "if there are any resource failures or other errors".
             if (task_port == std.c.TASK_NULL)
@@ -154,9 +155,9 @@ fn queryPageSize() usize {
             if (std.c._SC != void and @hasDecl(std.c._SC, "PAGESIZE"))
                 @intCast(std.c.sysconf(std.c._SC.PAGESIZE))
             else
-                @compileError("missing _SC.PAGESIZE declaration")
+                @compileError("missing _SC.PAGESIZE declaration for " ++ @tagName(builtin.os.tag) ++ "-" ++ @tagName(builtin.os.tag))
         else
-            @compileError("querying page size on this platform is not supported without linking libc"),
+            @compileError("querying page size on " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag) ++ " is not supported without linking libc"),
     };
 
     assert(size >= min_page_size);
