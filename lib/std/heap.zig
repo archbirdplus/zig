@@ -30,6 +30,9 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
         else => page_size_os_arch_unsupported,
     },
+    .wasi => switch (builtin.cpu.arch) {
+        .wasm32, .wasm64 => 64 << 10,
+    },
     // TODO: freestanding, uefi, freebsd, netbsd, dragonfly, openbsd
     .linux => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
@@ -72,6 +75,9 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         // Itanium => 8 << 10,
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
         else => page_size_os_arch_unsupported,
+    },
+    .wasi => switch (builtin.cpu.arch) {
+        .wasm32, .wasm64 => 64 << 10,
     },
     .linux => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
