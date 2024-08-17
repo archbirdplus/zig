@@ -33,6 +33,22 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .wasm32, .wasm64 => 64 << 10,
         else => missing_max_page_size,
     },
+    .freestanding => switch (builtin.cpu.arch) {
+        .wasm32, .wasm64 => 64 << 10,
+        .x86, .x86_64 => 4 << 10,
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 64 << 10,
+        // Explicitly only 4kb.
+        // https://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html#AEN798
+        .s390x => 4 << 10,
+        // Source: Zig's own libc page.h for arc.
+        .arc => 16 << 10,
+        // Source: Wikipedia "Page (computer memory)"
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 64 << 10,
+        .riscv32, .riscv64 => 4 << 10,
+        .sparc => 256 << 10,
+        .sparc64 => 64 << 10,
+        else => missing_max_page_size,
+    },
     // TODO: freestanding, uefi, freebsd, netbsd, dragonfly, openbsd
     .linux => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
@@ -78,6 +94,22 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
     },
     .wasi => switch (builtin.cpu.arch) {
         .wasm32, .wasm64 => 64 << 10,
+        else => missing_min_page_size,
+    },
+    .freestanding => switch (builtin.cpu.arch) {
+        .wasm32, .wasm64 => 64 << 10,
+        .x86, .x86_64 => 4 << 10,
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
+        // Explicitly only 4kb.
+        // https://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html#AEN798
+        .s390x => 4 << 10,
+        // Source: Zig's own libc page.h for arc.
+        .arc => 4 << 10,
+        // Source: Wikipedia "Page (computer memory)"
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 4 << 10,
+        .riscv32, .riscv64 => 4 << 10,
+        .sparc => 4 << 10,
+        .sparc64 => 8 << 10,
         else => missing_min_page_size,
     },
     .linux => switch (builtin.cpu.arch) {
