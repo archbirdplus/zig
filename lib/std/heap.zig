@@ -78,7 +78,11 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         // m68k
         else => missing_max_page_size,
     },
-    // TODO: netbsd, dragonfly, openbsd
+    .dragonfly => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        else => missing_max_page_size,
+    },
+    // TODO: openbsd
     .linux => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 64 << 10,
@@ -168,6 +172,10 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .riscv32, .riscv64 => missing_min_page_size,
         // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/m68k/include/vmparam.h#L70
         // m68k
+        else => missing_min_page_size,
+    },
+    .dragonfly => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
         else => missing_min_page_size,
     },
     .linux => switch (builtin.cpu.arch) {
