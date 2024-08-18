@@ -33,6 +33,10 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .wasm32, .wasm64 => 64 << 10,
         else => missing_max_page_size,
     },
+    .uefi => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        else => missing_max_page_size,
+    },
     .freestanding => switch (builtin.cpu.arch) {
         .wasm32, .wasm64 => 64 << 10,
         .x86, .x86_64 => 4 << 10,
@@ -94,6 +98,10 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
     },
     .wasi => switch (builtin.cpu.arch) {
         .wasm32, .wasm64 => 64 << 10,
+        else => missing_min_page_size,
+    },
+    .uefi => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
         else => missing_min_page_size,
     },
     .freestanding => switch (builtin.cpu.arch) {
