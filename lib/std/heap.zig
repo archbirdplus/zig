@@ -239,7 +239,7 @@ fn queryPageSize() usize {
             if (!builtin.link_libc)
                 @compileError("querying page size on Darwin is not supported without linking libc");
             const task_port = std.c.mach_task_self();
-            // This may fail "if there are any resource failures or other errors".
+            // mach_task_self may fail "if there are any resource failures or other errors".
             if (task_port == std.c.TASK_NULL)
                 break :blk 0;
             var info_count = std.c.TASK_VM_INFO_COUNT;
