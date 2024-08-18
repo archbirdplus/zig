@@ -159,10 +159,10 @@ pub const Config = struct {
 
 pub const Check = enum { ok, leak };
 
+var small_bucket_count_cache = std.atomic.Value(usize).init(0);
+var largest_bucket_object_size_cache = std.atomic.Value(usize).init(0);
+
 pub fn GeneralPurposeAllocator(comptime config: Config) type {
-    const small_bucket_count_max = math.log2(max_page_size);
-    const largest_bucket_object_size_max = 1 << (small_bucket_count_max - 1);
-    const LargestSizeClassInt = std.math.IntFittingRange(0, largest_bucket_object_size_max);
     return struct {
         backing_allocator: Allocator = std.heap.page_allocator,
         buckets: [small_bucket_count_max]Buckets = [1]Buckets{Buckets{}} ** small_bucket_count_max,
@@ -200,7 +200,9 @@ pub fn GeneralPurposeAllocator(comptime config: Config) type {
 
         pub const Error = mem.Allocator.Error;
 
-        var small_bucket_count_cache = std.atomic.Value(usize).init(0);
+        const small_bucket_count_max = math.log2(max_page_size);
+        const largest_bucket_object_size_max = 1 << (small_bucket_count_max - 1);
+        const LargestSizeClassInt = std.math.IntFittingRange(0, largest_bucket_object_size_max);
         fn small_bucket_count() usize {
             const cached = small_bucket_count_cache.load(.monotonic);
             if (cached != 0) {
@@ -210,7 +212,6 @@ pub fn GeneralPurposeAllocator(comptime config: Config) type {
             small_bucket_count_cache.store(val, .monotonic);
             return val;
         }
-        var largest_bucket_object_size_cache = std.atomic.Value(usize).init(0);
         fn largest_bucket_object_size() usize {
             const cached = largest_bucket_object_size_cache.load(.monotonic);
             if (cached != 0) {
