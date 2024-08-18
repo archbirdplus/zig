@@ -3,7 +3,6 @@ const std = @import("../std.zig");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const mem = std.mem;
-const heap = std.heap;
 const maxInt = std.math.maxInt;
 const assert = std.debug.assert;
 const page_size = std.wasm.page_size;
