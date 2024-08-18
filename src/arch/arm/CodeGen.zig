@@ -18,7 +18,6 @@ const ErrorMsg = Zcu.ErrorMsg;
 const Target = std.Target;
 const Allocator = mem.Allocator;
 const trace = @import("../../tracy.zig").trace;
-const DW = std.dwarf;
 const leb128 = std.leb;
 const log = std.log.scoped(.codegen);
 const build_options = @import("build_options");
@@ -259,11 +258,11 @@ const DbgInfoReloc = struct {
         }
     }
 
-    fn genArgDbgInfo(reloc: DbgInfoReloc, function: Self) error{OutOfMemory}!void {
+    fn genArgDbgInfo(reloc: DbgInfoReloc, function: Self) !void {
         switch (function.debug_output) {
             .dwarf => |dw| {
-                const loc: link.File.Dwarf.DeclState.DbgInfoLoc = switch (reloc.mcv) {
-                    .register => |reg| .{ .register = reg.dwarfLocOp() },
+                const loc: link.File.Dwarf.Loc = switch (reloc.mcv) {
+                    .register => |reg| .{ .reg = reg.dwarfNum() },
                     .stack_offset,
                     .stack_argument_offset,
                     => blk: {
@@ -272,15 +271,15 @@ const DbgInfoReloc = struct {
                             .stack_argument_offset => |offset| @as(i32, @intCast(function.saved_regs_stack_space + offset)),
                             else => unreachable,
                         };
-                        break :blk .{ .stack = .{
-                            .fp_register = DW.OP.breg11,
-                            .offset = adjusted_stack_offset,
+                        break :blk .{ .plus = .{
+                            &.{ .reg = 11 },
+                            &.{ .consts = adjusted_stack_offset },
                         } };
                     },
                     else => unreachable, // not a possible argument
                 };
 
-                try dw.genArgDbgInfo(reloc.name, reloc.ty, function.pt.zcu.funcOwnerDeclIndex(function.func_index), loc);
+                try dw.genVarDebugInfo(.local_arg, reloc.name, reloc.ty, loc);
             },
             .plan9 => {},
             .none => {},
@@ -288,16 +287,10 @@ const DbgInfoReloc = struct {
     }
 
     fn genVarDbgInfo(reloc: DbgInfoReloc, function: Self) !void {
-        const is_ptr = switch (reloc.tag) {
-            .dbg_var_ptr => true,
-            .dbg_var_val => false,
-            else => unreachable,
-        };
-
         switch (function.debug_output) {
             .dwarf => |dw| {
-                const loc: link.File.Dwarf.DeclState.DbgInfoLoc = switch (reloc.mcv) {
-                    .register => |reg| .{ .register = reg.dwarfLocOp() },
+                const loc: link.File.Dwarf.Loc = switch (reloc.mcv) {
+                    .register => |reg| .{ .reg = reg.dwarfNum() },
                     .ptr_stack_offset,
                     .stack_offset,
                     .stack_argument_offset,
@@ -309,21 +302,20 @@ const DbgInfoReloc = struct {
                             .stack_argument_offset => @as(i32, @intCast(function.saved_regs_stack_space + offset)),
                             else => unreachable,
                         };
-                        break :blk .{ .stack = .{
-                            .fp_register = DW.OP.breg11,
-                            .offset = adjusted_offset,
+                        break :blk .{ .plus = .{
+                            &.{ .reg = 11 },
+                            &.{ .consts = adjusted_offset },
                         } };
                     },
-                    .memory => |address| .{ .memory = address },
-                    .immediate => |x| .{ .immediate = x },
-                    .undef => .undef,
-                    .none => .none,
+                    .memory => |address| .{ .constu = address },
+                    .immediate => |x| .{ .constu = x },
+                    .none => .empty,
                     else => blk: {
                         log.debug("TODO generate debug info for {}", .{reloc.mcv});
-                        break :blk .nop;
+                        break :blk .empty;
                     },
                 };
-                try dw.genVarDbgInfo(reloc.name, reloc.ty, function.pt.zcu.funcOwnerDeclIndex(function.func_index), is_ptr, loc);
+                try dw.genVarDebugInfo(.local_var, reloc.name, reloc.ty, loc);
             },
             .plan9 => {},
             .none => {},
@@ -346,11 +338,9 @@ pub fn generate(
     const zcu = pt.zcu;
     const gpa = zcu.gpa;
     const func = zcu.funcInfo(func_index);
-    const fn_owner_decl = zcu.declPtr(func.owner_decl);
-    assert(fn_owner_decl.has_tv);
-    const fn_type = fn_owner_decl.typeOf(zcu);
-    const namespace = zcu.namespacePtr(fn_owner_decl.src_namespace);
-    const target = &namespace.fileScope(zcu).mod.resolved_target.result;
+    const func_ty = Type.fromInterned(func.ty);
+    const file_scope = zcu.navFileScope(func.owner_nav);
+    const target = &file_scope.mod.resolved_target.result;
 
     var branch_stack = std.ArrayList(Branch).init(gpa);
     defer {
@@ -372,7 +362,7 @@ pub fn generate(
         .err_msg = null,
         .args = undefined, // populated after `resolveCallingConventionValues`
         .ret_mcv = undefined, // populated after `resolveCallingConventionValues`
-        .fn_type = fn_type,
+        .fn_type = func_ty,
         .arg_index = 0,
         .branch_stack = &branch_stack,
         .src_loc = src_loc,
@@ -385,7 +375,7 @@ pub fn generate(
     defer function.exitlude_jump_relocs.deinit(gpa);
     defer function.dbg_info_relocs.deinit(gpa);
 
-    var call_info = function.resolveCallingConventionValues(fn_type) catch |err| switch (err) {
+    var call_info = function.resolveCallingConventionValues(func_ty) catch |err| switch (err) {
         error.CodegenFail => return Result{ .fail = function.err_msg.? },
         error.OutOfRegisters => return Result{
             .fail = try ErrorMsg.create(gpa, src_loc, "CodeGen ran out of registers. This is a bug in the Zig compiler.", .{}),
@@ -4264,6 +4254,7 @@ fn airCall(self: *Self, inst: Air.Inst.Index, modifier: std.builtin.CallModifier
     const ty = self.typeOf(callee);
     const pt = self.pt;
     const mod = pt.zcu;
+    const ip = &mod.intern_pool;
 
     const fn_ty = switch (ty.zigTypeTag(mod)) {
         .Fn => ty,
@@ -4333,28 +4324,16 @@ fn airCall(self: *Self, inst: Air.Inst.Index, modifier: std.builtin.CallModifier
 
     // Due to incremental compilation, how function calls are generated depends
     // on linking.
-    if (try self.air.value(callee, pt)) |func_value| {
-        if (func_value.getFunction(mod)) |func| {
-            if (self.bin_file.cast(link.File.Elf)) |elf_file| {
-                const zo = elf_file.zigObjectPtr().?;
-                const sym_index = try zo.getOrCreateMetadataForDecl(elf_file, func.owner_decl);
-                const sym = zo.symbol(sym_index);
-                _ = try sym.getOrCreateZigGotEntry(sym_index, elf_file);
-                const got_addr: u32 = @intCast(sym.zigGotAddress(elf_file));
-                try self.genSetReg(Type.usize, .lr, .{ .memory = got_addr });
-            } else if (self.bin_file.cast(link.File.MachO)) |_| {
-                unreachable; // unsupported architecture for MachO
-            } else {
-                return self.fail("TODO implement call on {s} for {s}", .{
-                    @tagName(self.bin_file.tag),
-                    @tagName(self.target.cpu.arch),
-                });
-            }
-        } else if (func_value.getExternFunc(mod)) |_| {
+    if (try self.air.value(callee, pt)) |func_value| switch (ip.indexToKey(func_value.toIntern())) {
+        .func => {
+            return self.fail("TODO implement calling functions", .{});
+        },
+        .@"extern" => {
             return self.fail("TODO implement calling extern functions", .{});
-        } else {
+        },
+        else => {
             return self.fail("TODO implement calling bitcasted functions", .{});
-        }
+        },
     } else {
         assert(ty.zigTypeTag(mod) == .Pointer);
         const mcv = try self.resolveInst(callee);
@@ -6178,12 +6157,12 @@ fn genTypedValue(self: *Self, val: Value) InnerError!MCValue {
         pt,
         self.src_loc,
         val,
-        pt.zcu.funcOwnerDeclIndex(self.func_index),
+        self.target.*,
     )) {
         .mcv => |mcv| switch (mcv) {
             .none => .none,
             .undef => .undef,
-            .load_got, .load_symbol, .load_direct, .load_tlv => unreachable, // TODO
+            .load_got, .load_symbol, .load_direct, .load_tlv, .lea_symbol, .lea_direct => unreachable, // TODO
             .immediate => |imm| .{ .immediate = @truncate(imm) },
             .memory => |addr| .{ .memory = addr },
         },

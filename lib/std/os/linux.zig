@@ -874,6 +874,11 @@ pub const MSF = struct {
     pub const SYNC = 4;
 };
 
+/// Can only be called on 64 bit systems.
+pub fn mseal(address: [*]const u8, length: usize, flags: usize) usize {
+    return syscall3(.mseal, @intFromPtr(address), length, flags);
+}
+
 pub fn msync(address: [*]const u8, length: usize, flags: i32) usize {
     return syscall3(.msync, @intFromPtr(address), length, @as(u32, @bitCast(flags)));
 }
@@ -6573,7 +6578,7 @@ pub const tc_lflag_t = if (is_mips) packed struct(tcflag_t) {
     PENDIN: bool = false,
     TOSTOP: bool = false,
     EXTPROC: bool = false,
-    _17: u16 = 0,
+    _17: u15 = 0,
 } else if (is_ppc) packed struct(tcflag_t) {
     ECHOKE: bool = false,
     ECHOE: bool = false,
