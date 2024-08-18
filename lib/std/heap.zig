@@ -1151,6 +1151,19 @@ pub fn testAllocatorAlignedShrink(base_allocator: mem.Allocator) !void {
     try testing.expect(slice[60] == 0x34);
 }
 
+test "pageSize() smoke test" {
+    const size = std.heap.pageSize();
+    // Check that pageSize is a power of 2.
+    std.debug.assert(size & (size - 1) == 0);
+}
+
+test "queryPageSize() smoke test" {
+    // queryPageSize() does not always get called by pageSize()
+    const size = queryPageSize();
+    // Check that pageSize is a power of 2.
+    std.debug.assert(size & (size - 1) == 0);
+}
+
 test {
     _ = LoggingAllocator;
     _ = LogToWriterAllocator;
