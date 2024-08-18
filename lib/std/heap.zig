@@ -33,10 +33,8 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .wasm32, .wasm64 => 64 << 10,
         else => missing_max_page_size,
     },
-    .uefi => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        else => missing_max_page_size,
-    },
+    // https://github.com/tianocore/edk2/blob/b158dad150bf02879668f72ce306445250838201/MdePkg/Include/Uefi/UefiBaseType.h#L180-L187
+    .uefi => 4 << 10,
     .freestanding => switch (builtin.cpu.arch) {
         .wasm32, .wasm64 => 64 << 10,
         .x86, .x86_64 => 4 << 10,
@@ -137,10 +135,8 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .wasm32, .wasm64 => 64 << 10,
         else => missing_min_page_size,
     },
-    .uefi => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        else => missing_min_page_size,
-    },
+    // https://github.com/tianocore/edk2/blob/b158dad150bf02879668f72ce306445250838201/MdePkg/Include/Uefi/UefiBaseType.h#L180-L187
+    .uefi => 4 << 10,
     .freestanding => switch (builtin.cpu.arch) {
         .wasm32, .wasm64 => 64 << 10,
         .x86, .x86_64 => 4 << 10,
