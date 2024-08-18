@@ -220,7 +220,7 @@ var runtime_page_size = std.atomic.Value(usize).init(0);
 /// Runtime detected page size.
 pub inline fn pageSize() usize {
     if (@inComptime()) {
-        @compileError("pageSize() must NOT be used in comptime. Use page_size variants instead.");
+        @compileError("pageSize() can only be determined at runtime");
     }
     if (min_page_size == max_page_size) {
         return min_page_size;
