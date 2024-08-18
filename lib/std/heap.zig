@@ -53,7 +53,15 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .sparc64 => 64 << 10,
         else => missing_max_page_size,
     },
-    // TODO: freestanding, uefi, freebsd, netbsd, dragonfly, openbsd
+    .freebsd => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        // https://github.com/freebsd/freebsd-src/blob/0a9d1da6e6cede5e9c0ff63240d724049ad72b5b/sys/arm64/arm64/locore.S#L931
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => missing_max_page_size,
+        .riscv32, .riscv64 => missing_max_page_size,
+        else => missing_max_page_size,
+    },
+    // TODO: netbsd, dragonfly, openbsd
     .linux => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 64 << 10,
@@ -118,6 +126,14 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .riscv32, .riscv64 => 4 << 10,
         .sparc => 4 << 10,
         .sparc64 => 8 << 10,
+        else => missing_min_page_size,
+    },
+    .freebsd => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        // https://github.com/freebsd/freebsd-src/blob/0a9d1da6e6cede5e9c0ff63240d724049ad72b5b/sys/arm64/arm64/locore.S#L931
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => missing_min_page_size,
+        .riscv32, .riscv64 => missing_min_page_size,
         else => missing_min_page_size,
     },
     .linux => switch (builtin.cpu.arch) {
