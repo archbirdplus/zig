@@ -69,13 +69,12 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .mips, .mipsel, .mips64, .mips64el => 16 << 10,
         // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/powerpc/include/vmparam.h#L41
         .powerpc, .powerpc64, .powerpc64le, .powerpcle => 16 << 10,
-        .sh => missing_max_page_size,
         // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/sparc/include/vmparam.h#L69
         .sparc => 8 << 10,
         .sparc64 => missing_max_page_size,
         .riscv32, .riscv64 => missing_max_page_size,
         // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/m68k/include/vmparam.h#L70
-        // m68k
+        .m68k => 8 << 10,
         else => missing_max_page_size,
     },
     .dragonfly => switch (builtin.cpu.arch) {
@@ -174,13 +173,12 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .mips, .mipsel, .mips64, .mips64el => 4 << 10,
         // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/powerpc/include/vmparam.h#L41
         .powerpc, .powerpc64, .powerpc64le, .powerpcle => 4 << 10,
-        .sh => missing_min_page_size,
         // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/sparc/include/vmparam.h#L69
         .sparc => 4 << 10,
         .sparc64 => missing_min_page_size,
         .riscv32, .riscv64 => missing_min_page_size,
         // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/m68k/include/vmparam.h#L70
-        // m68k
+        .m68k => 4 << 10,
         else => missing_min_page_size,
     },
     .dragonfly => switch (builtin.cpu.arch) {
