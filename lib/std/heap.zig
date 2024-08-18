@@ -8,110 +8,8 @@ const c = std.c;
 const Allocator = std.mem.Allocator;
 const windows = std.os.windows;
 
-const missing_max_page_size = @compileError("The Zig standard library is missing a max_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 const missing_min_page_size = @compileError("The Zig standard library is missing a min_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
-
-/// This value defines the largest page size for this architecture/OS combination that the standard library allows. The standard library asserts that the `pageSize()` does not exceed `max_page_size`. To allow larger page sizes, override `max_page_size` as well as `-z max-page-size`.
-pub const max_page_size: usize = switch (builtin.os.tag) {
-    .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
-        else => missing_max_page_size,
-    },
-    // -- <https://devblogs.microsoft.com/oldnewthing/20210510-00/?p=105200>
-    .windows => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        // SuperH => 4 << 10,
-        .mips, .mipsel, .mips64, .mips64el => 4 << 10,
-        .powerpc, .powerpcle, .powerpc64, .powerpc64le => 4 << 10,
-        // DEC Alpha => 8 << 10,
-        // Itanium => 8 << 10,
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
-        else => missing_max_page_size,
-    },
-    .wasi => switch (builtin.cpu.arch) {
-        .wasm32, .wasm64 => 64 << 10,
-        else => missing_max_page_size,
-    },
-    // https://github.com/tianocore/edk2/blob/b158dad150bf02879668f72ce306445250838201/MdePkg/Include/Uefi/UefiBaseType.h#L180-L187
-    .uefi => 4 << 10,
-    .freestanding => switch (builtin.cpu.arch) {
-        .wasm32, .wasm64 => 64 << 10,
-        .x86, .x86_64 => 4 << 10,
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 64 << 10,
-        // Explicitly only 4kb.
-        // https://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html#AEN798
-        .s390x => 4 << 10,
-        // Source: Zig's own libc page.h for arc.
-        .arc => 16 << 10,
-        // Source: Wikipedia "Page (computer memory)"
-        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 64 << 10,
-        .riscv32, .riscv64 => 4 << 10,
-        .sparc => 256 << 10,
-        .sparc64 => 64 << 10,
-        else => missing_max_page_size,
-    },
-    .freebsd => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        // https://github.com/freebsd/freebsd-src/blob/0a9d1da6e6cede5e9c0ff63240d724049ad72b5b/sys/arm64/arm64/locore.S#L931
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
-        .powerpc, .powerpc64, .powerpc64le, .powerpcle => missing_max_page_size,
-        .riscv32, .riscv64 => missing_max_page_size,
-        else => missing_max_page_size,
-    },
-    .netbsd => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        // Alpha
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => missing_max_page_size,
-        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/mips/include/vmparam.h#L73
-        .mips, .mipsel, .mips64, .mips64el => 16 << 10,
-        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/powerpc/include/vmparam.h#L41
-        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 16 << 10,
-        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/sparc/include/vmparam.h#L69
-        .sparc => 8 << 10,
-        .sparc64 => missing_max_page_size,
-        .riscv32, .riscv64 => missing_max_page_size,
-        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/m68k/include/vmparam.h#L70
-        .m68k => 8 << 10,
-        else => missing_max_page_size,
-    },
-    .dragonfly => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        else => missing_max_page_size,
-    },
-    .openbsd => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        // Alpha
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => missing_max_page_size,
-        .mips, .mipsel, .mips64, .mips64el, .loongarch32, .loongarch64 => missing_max_page_size,
-        .powerpc, .powerpc64, .powerpc64le, .powerpcle => missing_max_page_size,
-        .riscv64 => missing_max_page_size,
-        .sparc64 => missing_max_page_size,
-        else => missing_max_page_size,
-    },
-    .linux => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 64 << 10,
-        // Explicitly only 4kb.
-        // https://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html#AEN798
-        .s390x => 4 << 10,
-        // Source: Linux mips/Kconfig.
-        .mips, .mipsel, .mips64, .mips64el, .loongarch32, .loongarch64 => 64 << 10,
-        // Source: csky/Kconfig only selects HAVE_PAGE_SIZE_4KB.
-        .csky => 4 << 10,
-        // Source: Hexagon's page.h in Linux accepts CONFIG_PAGE_SIZE_1MB.
-        .hexagon => 1024 << 10,
-        // Source: Zig's own libc page.h for arc.
-        .arc => 16 << 10,
-        // Source: Wikipedia "Page (computer memory)"
-        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 64 << 10,
-        .riscv32, .riscv64 => 4 << 10,
-        .sparc => 256 << 10,
-        .sparc64 => 64 << 10,
-        else => missing_max_page_size,
-    },
-    else => missing_max_page_size,
-};
+const missing_max_page_size = @compileError("The Zig standard library is missing a max_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 
 /// Compile time minimum page size that the architecture/OS combination supports. Pointers aligned to the system's page size are aligned to at least `min_page_size`, but system calls such as `mmap` and `VirtualAlloc` may return pointers with much larger alignments.
 pub const min_page_size: usize = switch (builtin.os.tag) {
@@ -213,6 +111,108 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         else => missing_min_page_size,
     },
     else => missing_min_page_size,
+};
+
+/// This value defines the largest page size for this architecture/OS combination that the standard library allows. The standard library asserts that the `pageSize()` does not exceed `max_page_size`. To allow larger page sizes, override `max_page_size` as well as `-z max-page-size`.
+pub const max_page_size: usize = switch (builtin.os.tag) {
+    .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
+        else => missing_max_page_size,
+    },
+    // -- <https://devblogs.microsoft.com/oldnewthing/20210510-00/?p=105200>
+    .windows => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        // SuperH => 4 << 10,
+        .mips, .mipsel, .mips64, .mips64el => 4 << 10,
+        .powerpc, .powerpcle, .powerpc64, .powerpc64le => 4 << 10,
+        // DEC Alpha => 8 << 10,
+        // Itanium => 8 << 10,
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
+        else => missing_max_page_size,
+    },
+    .wasi => switch (builtin.cpu.arch) {
+        .wasm32, .wasm64 => 64 << 10,
+        else => missing_max_page_size,
+    },
+    // https://github.com/tianocore/edk2/blob/b158dad150bf02879668f72ce306445250838201/MdePkg/Include/Uefi/UefiBaseType.h#L180-L187
+    .uefi => 4 << 10,
+    .freestanding => switch (builtin.cpu.arch) {
+        .wasm32, .wasm64 => 64 << 10,
+        .x86, .x86_64 => 4 << 10,
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 64 << 10,
+        // Explicitly only 4kb.
+        // https://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html#AEN798
+        .s390x => 4 << 10,
+        // Source: Zig's own libc page.h for arc.
+        .arc => 16 << 10,
+        // Source: Wikipedia "Page (computer memory)"
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 64 << 10,
+        .riscv32, .riscv64 => 4 << 10,
+        .sparc => 256 << 10,
+        .sparc64 => 64 << 10,
+        else => missing_max_page_size,
+    },
+    .freebsd => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        // https://github.com/freebsd/freebsd-src/blob/0a9d1da6e6cede5e9c0ff63240d724049ad72b5b/sys/arm64/arm64/locore.S#L931
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => missing_max_page_size,
+        .riscv32, .riscv64 => missing_max_page_size,
+        else => missing_max_page_size,
+    },
+    .netbsd => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        // Alpha
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => missing_max_page_size,
+        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/mips/include/vmparam.h#L73
+        .mips, .mipsel, .mips64, .mips64el => 16 << 10,
+        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/powerpc/include/vmparam.h#L41
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 16 << 10,
+        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/sparc/include/vmparam.h#L69
+        .sparc => 8 << 10,
+        .sparc64 => missing_max_page_size,
+        .riscv32, .riscv64 => missing_max_page_size,
+        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/m68k/include/vmparam.h#L70
+        .m68k => 8 << 10,
+        else => missing_max_page_size,
+    },
+    .dragonfly => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        else => missing_max_page_size,
+    },
+    .openbsd => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        // Alpha
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => missing_max_page_size,
+        .mips, .mipsel, .mips64, .mips64el, .loongarch32, .loongarch64 => missing_max_page_size,
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => missing_max_page_size,
+        .riscv64 => missing_max_page_size,
+        .sparc64 => missing_max_page_size,
+        else => missing_max_page_size,
+    },
+    .linux => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 64 << 10,
+        // Explicitly only 4kb.
+        // https://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html#AEN798
+        .s390x => 4 << 10,
+        // Source: Linux mips/Kconfig.
+        .mips, .mipsel, .mips64, .mips64el, .loongarch32, .loongarch64 => 64 << 10,
+        // Source: csky/Kconfig only selects HAVE_PAGE_SIZE_4KB.
+        .csky => 4 << 10,
+        // Source: Hexagon's page.h in Linux accepts CONFIG_PAGE_SIZE_1MB.
+        .hexagon => 1024 << 10,
+        // Source: Zig's own libc page.h for arc.
+        .arc => 16 << 10,
+        // Source: Wikipedia "Page (computer memory)"
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 64 << 10,
+        .riscv32, .riscv64 => 4 << 10,
+        .sparc => 256 << 10,
+        .sparc64 => 64 << 10,
+        else => missing_max_page_size,
+    },
+    else => missing_max_page_size,
 };
 
 var runtime_page_size = std.atomic.Value(usize).init(0);
