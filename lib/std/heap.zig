@@ -61,6 +61,23 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .riscv32, .riscv64 => missing_max_page_size,
         else => missing_max_page_size,
     },
+    .netbsd => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        // Alpha
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => missing_max_page_size,
+        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/mips/include/vmparam.h#L73
+        .mips, .mipsel, .mips64, .mips64el => 16 << 10,
+        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/powerpc/include/vmparam.h#L41
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 16 << 10,
+        .sh => missing_max_page_size,
+        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/sparc/include/vmparam.h#L69
+        .sparc => 8 << 10,
+        .sparc64 => missing_max_page_size,
+        .riscv32, .riscv64 => missing_max_page_size,
+        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/m68k/include/vmparam.h#L70
+        // m68k
+        else => missing_max_page_size,
+    },
     // TODO: netbsd, dragonfly, openbsd
     .linux => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
@@ -134,6 +151,23 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
         .powerpc, .powerpc64, .powerpc64le, .powerpcle => missing_min_page_size,
         .riscv32, .riscv64 => missing_min_page_size,
+        else => missing_min_page_size,
+    },
+    .netbsd => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        // Alpha
+        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => missing_min_page_size,
+        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/mips/include/vmparam.h#L73
+        .mips, .mipsel, .mips64, .mips64el => 4 << 10,
+        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/powerpc/include/vmparam.h#L41
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 4 << 10,
+        .sh => missing_min_page_size,
+        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/sparc/include/vmparam.h#L69
+        .sparc => 4 << 10,
+        .sparc64 => missing_min_page_size,
+        .riscv32, .riscv64 => missing_min_page_size,
+        // https://github.com/NetBSD/src/blob/bd34fa0e7331e54a77f1d095e88c69f77ad222bd/sys/arch/m68k/include/vmparam.h#L70
+        // m68k
         else => missing_min_page_size,
     },
     .linux => switch (builtin.cpu.arch) {
