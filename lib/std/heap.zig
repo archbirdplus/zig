@@ -113,7 +113,7 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
     else => missing_min_page_size,
 };
 
-/// This value defines the largest page size for this architecture/OS combination that the standard library allows. The standard library asserts that the `pageSize()` does not exceed `max_page_size`. To allow larger page sizes, override `max_page_size` as well as `-z max-page-size`.
+/// This value defines the largest page size for this architecture/OS combination that the standard library allows. The standard library asserts that `pageSize()` does not exceed `max_page_size`. Using a larger page size requires modifying an appropriate prong in the definition of `max_page_size`. See also the linker argument `-z max-page-size=`.
 pub const max_page_size: usize = switch (builtin.os.tag) {
     .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
