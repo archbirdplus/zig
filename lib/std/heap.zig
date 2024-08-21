@@ -90,24 +90,22 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         else => missing_min_page_size,
     },
     .linux => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
-        // Explicitly only 4kb.
-        // https://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html#AEN798
-        .s390x => 4 << 10,
-        // Source: Wikipedia "MIPS" and Linux mips/Kconfig.
-        .mips, .mipsel, .mips64, .mips64el, .loongarch32, .loongarch64 => 4 << 10,
-        // Source: csky/Kconfig only selects HAVE_PAGE_SIZE_4KB.
-        .csky => 4 << 10,
-        // Hexagon's Kconfig/page.h in Linux. Non-huge pages go past 256KB.
-        .hexagon => 4 << 10,
-        // Source: Zig's own libc page.h for arc.
+        // Linux/arch/*/Kconfig
         .arc => 4 << 10,
-        // Source: Wikipedia "Page (computer memory)"
+        .thumb, .thumbeb, .arm, .armeb => 4 << 10,
+        .aarch64, .aarch64_be => 4 << 10,
+        .csky => 4 << 10,
+        .hexagon => 4 << 10,
+        .loongarch32, .loongarch64 => 4 << 10,
+        .m68k => 4 << 10,
+        .mips, .mipsel, .mips64, .mips64el => 4 << 10,
         .powerpc, .powerpc64, .powerpc64le, .powerpcle => 4 << 10,
         .riscv32, .riscv64 => 4 << 10,
+        .s390x => 4 << 10,
         .sparc => 4 << 10,
         .sparc64 => 8 << 10,
+        .x86, .x86_64 => 4 << 10,
+        .xtensa => 4 << 10,
         else => missing_min_page_size,
     },
     else => missing_min_page_size,
@@ -192,24 +190,22 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         else => missing_max_page_size,
     },
     .linux => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 64 << 10,
-        // Explicitly only 4kb.
-        // https://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html#AEN798
-        .s390x => 4 << 10,
-        // Source: Linux mips/Kconfig.
-        .mips, .mipsel, .mips64, .mips64el, .loongarch32, .loongarch64 => 64 << 10,
-        // Source: csky/Kconfig only selects HAVE_PAGE_SIZE_4KB.
-        .csky => 4 << 10,
-        // Source: Hexagon's page.h in Linux accepts CONFIG_PAGE_SIZE_1MB.
-        .hexagon => 1024 << 10,
-        // Source: Zig's own libc page.h for arc.
+        // Linux/arch/*/Kconfig
         .arc => 16 << 10,
-        // Source: Wikipedia "Page (computer memory)"
-        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 64 << 10,
+        .thumb, .thumbeb, .arm, .armeb => 4 << 10,
+        .aarch64, .aarch64_be => 64 << 10,
+        .csky => 4 << 10,
+        .hexagon => 256 << 10,
+        .loongarch32, .loongarch64 => 64 << 10,
+        .m68k => 8 << 10,
+        .mips, .mipsel, .mips64, .mips64el => 64 << 10,
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 256 << 10,
         .riscv32, .riscv64 => 4 << 10,
-        .sparc => 256 << 10,
-        .sparc64 => 64 << 10,
+        .s390x => 4 << 10,
+        .sparc => 4 << 10,
+        .sparc64 => 8 << 10,
+        .x86, .x86_64 => 4 << 10,
+        .xtensa => 4 << 10,
         else => missing_max_page_size,
     },
     else => missing_max_page_size,
