@@ -35,22 +35,6 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
     },
     // https://github.com/tianocore/edk2/blob/b158dad150bf02879668f72ce306445250838201/MdePkg/Include/Uefi/UefiBaseType.h#L180-L187
     .uefi => 4 << 10,
-    .freestanding => switch (builtin.cpu.arch) {
-        .wasm32, .wasm64 => 64 << 10,
-        .x86, .x86_64 => 4 << 10,
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
-        // Explicitly only 4kb.
-        // https://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html#AEN798
-        .s390x => 4 << 10,
-        // Source: Zig's own libc page.h for arc.
-        .arc => 4 << 10,
-        // Source: Wikipedia "Page (computer memory)"
-        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 4 << 10,
-        .riscv32, .riscv64 => 4 << 10,
-        .sparc => 4 << 10,
-        .sparc64 => 8 << 10,
-        else => missing_min_page_size,
-    },
     .freebsd => switch (builtin.cpu.arch) {
         // FreeBSD/sys/*
         .x86, .x86_64 => 4 << 10,
@@ -136,22 +120,6 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
     },
     // https://github.com/tianocore/edk2/blob/b158dad150bf02879668f72ce306445250838201/MdePkg/Include/Uefi/UefiBaseType.h#L180-L187
     .uefi => 4 << 10,
-    .freestanding => switch (builtin.cpu.arch) {
-        .wasm32, .wasm64 => 64 << 10,
-        .x86, .x86_64 => 4 << 10,
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 64 << 10,
-        // Explicitly only 4kb.
-        // https://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html#AEN798
-        .s390x => 4 << 10,
-        // Source: Zig's own libc page.h for arc.
-        .arc => 16 << 10,
-        // Source: Wikipedia "Page (computer memory)"
-        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 64 << 10,
-        .riscv32, .riscv64 => 4 << 10,
-        .sparc => 256 << 10,
-        .sparc64 => 64 << 10,
-        else => missing_max_page_size,
-    },
     .freebsd => switch (builtin.cpu.arch) {
         // FreeBSD/sys/*
         .x86, .x86_64 => 4 << 10,
