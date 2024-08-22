@@ -72,17 +72,18 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .powerpc, .powerpc64, .powerpc64le, .powerpcle => 4 << 10,
         .riscv64 => 4 << 10,
         .sparc64 => 8 << 10,
-        else => missing_max_page_size,
+        else => missing_min_page_size,
     },
     .solaris, .illumos => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
-        else => missing_max_page_size,
+        else => missing_min_page_size,
     },
     .fuchsia => switch (builtin.cpu.arch) {
-        // https://fuchsia.googlesource.com/fuchsia/+/8b0e396b54a587bc65ed8ab8a521f26b6a3c5cb2/docs/reference/syscalls/system_get_page_size.md
+        // fuchsia/kernel/arch/*/include/arch/defines.h
         .x86_64 => 4 << 10,
         .aarch64, .aarch64_be => 4 << 10,
-        else => missing_max_page_size,
+        .riscv64> 4 << 10,
+        else => missing_min_page_size,
     },
     // https://github.com/SerenityOS/serenity/blob/62b938b798dc009605b5df8a71145942fc53808b/Kernel/API/POSIX/sys/limits.h#L11-L13
     .serenity => 4 << 10,
@@ -139,7 +140,7 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .aarch64, .aarch64_be => 4 << 10,
         .powerpc, .powerpc64, .powerpc64le, .powerpcle => 4 << 10,
         .riscv32, .riscv64 => 4 << 10,
-        else => missing_min_page_size,
+        else => missing_max_page_size,
     },
     .netbsd => switch (builtin.cpu.arch) {
         // NetBSD/sys/arch/*
@@ -175,9 +176,10 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         else => missing_max_page_size,
     },
     .fuchsia => switch (builtin.cpu.arch) {
-        // https://fuchsia.googlesource.com/fuchsia/+/8b0e396b54a587bc65ed8ab8a521f26b6a3c5cb2/docs/reference/syscalls/system_get_page_size.md
-        .x86_64 => 2 << 20, // yes, MiB
-        .aarch64, .aarch64_be => 64 << 10,
+        // fuchsia/kernel/arch/*/include/arch/defines.h
+        .x86_64 => 4 << 10,
+        .aarch64, .aarch64_be => 4 << 10,
+        .riscv64> 4 << 10,
         else => missing_max_page_size,
     },
     // https://github.com/SerenityOS/serenity/blob/62b938b798dc009605b5df8a71145942fc53808b/Kernel/API/POSIX/sys/limits.h#L11-L13
