@@ -89,6 +89,18 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
     },
     // https://github.com/SerenityOS/serenity/blob/62b938b798dc009605b5df8a71145942fc53808b/Kernel/API/POSIX/sys/limits.h#L11-L13
     .serenity => 4 << 10,
+    .haiku => switch (builtin.cpu.arch) {
+        // haiku/headers/posix/arch/*/limits.h
+        .thumb, .thumbeb, .arm, .armeb => 4 << 10,
+        .aarch64, .aarch64_be => 4 << 10,
+        .m68k => 4 << 10,
+        .mips, .mipsel, .mips64, .mips64el => 4 << 10,
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 4 << 10,
+        .riscv64 => 4 << 10,
+        .sparc64 => 8 << 10,
+        .x86, .x86_64 => 4 << 10,
+        else => missing_min_page_size,
+    },
     .linux => switch (builtin.cpu.arch) {
         // Linux/arch/*/Kconfig
         .arc => 4 << 10,
@@ -188,6 +200,18 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
     },
     // https://github.com/SerenityOS/serenity/blob/62b938b798dc009605b5df8a71145942fc53808b/Kernel/API/POSIX/sys/limits.h#L11-L13
     .serenity => 4 << 10,
+    .haiku => switch (builtin.cpu.arch) {
+        // haiku/headers/posix/arch/*/limits.h
+        .thumb, .thumbeb, .arm, .armeb => 4 << 10,
+        .aarch64, .aarch64_be => 4 << 10,
+        .m68k => 4 << 10,
+        .mips, .mipsel, .mips64, .mips64el => 4 << 10,
+        .powerpc, .powerpc64, .powerpc64le, .powerpcle => 4 << 10,
+        .riscv64 => 4 << 10,
+        .sparc64 => 8 << 10,
+        .x86, .x86_64 => 4 << 10,
+        else => missing_max_page_size,
+    },
     .linux => switch (builtin.cpu.arch) {
         // Linux/arch/*/Kconfig
         .arc => 16 << 10,
