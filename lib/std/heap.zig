@@ -101,6 +101,12 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .x86, .x86_64 => 4 << 10,
         else => missing_min_page_size,
     },
+    .hurd => switch (builtin.cpu.arch) {
+        // gnumach/*/include/mach/*/vm_param.h
+        .x86, .x86_64 => 4 << 10,
+        .aarch64 => missing_min_page_size,
+        else => missing_min_page_size,
+    },
     .linux => switch (builtin.cpu.arch) {
         // Linux/arch/*/Kconfig
         .arc => 4 << 10,
@@ -210,6 +216,12 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .riscv64 => 4 << 10,
         .sparc64 => 8 << 10,
         .x86, .x86_64 => 4 << 10,
+        else => missing_max_page_size,
+    },
+    .hurd => switch (builtin.cpu.arch) {
+        // gnumach/*/include/mach/*/vm_param.h
+        .x86, .x86_64 => 4 << 10,
+        .aarch64 => missing_max_page_size,
         else => missing_max_page_size,
     },
     .linux => switch (builtin.cpu.arch) {
