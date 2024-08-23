@@ -75,14 +75,16 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         else => missing_min_page_size,
     },
     .solaris, .illumos => switch (builtin.cpu.arch) {
+        // src/uts/*/sys/machparam.h
         .x86, .x86_64 => 4 << 10,
+        .sparc, .sparc64 => 8 << 10,
         else => missing_min_page_size,
     },
     .fuchsia => switch (builtin.cpu.arch) {
         // fuchsia/kernel/arch/*/include/arch/defines.h
         .x86_64 => 4 << 10,
         .aarch64, .aarch64_be => 4 << 10,
-        .riscv64> 4 << 10,
+        .riscv64 => 4 << 10,
         else => missing_min_page_size,
     },
     // https://github.com/SerenityOS/serenity/blob/62b938b798dc009605b5df8a71145942fc53808b/Kernel/API/POSIX/sys/limits.h#L11-L13
@@ -172,14 +174,16 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         else => missing_max_page_size,
     },
     .solaris, .illumos => switch (builtin.cpu.arch) {
+        // src/uts/*/sys/machparam.h
         .x86, .x86_64 => 4 << 10,
+        .sparc, .sparc64 => 8 << 10,
         else => missing_max_page_size,
     },
     .fuchsia => switch (builtin.cpu.arch) {
         // fuchsia/kernel/arch/*/include/arch/defines.h
         .x86_64 => 4 << 10,
         .aarch64, .aarch64_be => 4 << 10,
-        .riscv64> 4 << 10,
+        .riscv64 => 4 << 10,
         else => missing_max_page_size,
     },
     // https://github.com/SerenityOS/serenity/blob/62b938b798dc009605b5df8a71145942fc53808b/Kernel/API/POSIX/sys/limits.h#L11-L13
