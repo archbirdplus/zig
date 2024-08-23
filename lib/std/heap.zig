@@ -126,6 +126,10 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .xtensa => 4 << 10,
         else => missing_min_page_size,
     },
+    .freestanding => switch (builtin.cpu.arch) {
+        .wasm32, .wasm64 => 64 << 10,
+        else => missing_min_page_size,
+    },
     else => missing_min_page_size,
 };
 
@@ -241,6 +245,10 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .sparc64 => 8 << 10,
         .x86, .x86_64 => 4 << 10,
         .xtensa => 4 << 10,
+        else => missing_max_page_size,
+    },
+    .freestanding => switch (builtin.cpu.arch) {
+        .wasm32, .wasm64 => 64 << 10,
         else => missing_max_page_size,
     },
     else => missing_max_page_size,
