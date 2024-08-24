@@ -112,15 +112,26 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .x86, .x86_64 => 4 << 10,
         .arm, .armeb => 4 << 10,
         .aarch64, .aarch64_be => 4 << 10,
-        .mips, .mipsel, .mips64, .mips64el => 4 << 10
+        .mips, .mipsel, .mips64, .mips64el => 4 << 10,
         .powerpc, .powerpcle, .powerpc64, .powerpc64le => 4 << 10,
         .sparc => 4 << 10,
         // Tim Newsham's port, not upstreamed
         .sparc64 => 8 << 10,
         else => missing_min_page_size,
     },
-    .ps4, .ps5 => switch (builtin.cpu.arch) {
+    .ps3 => switch (builtin.os.tag) {
+        // cell/SDK_doc/en/html/C_and_C++_standard_libraries/stdlib.html
+        .powerpc64 => 1 << 20, // 1 MiB
+        else => missing_min_page_size,
+    },
+    .ps4 => switch (builtin.os.tag) {
+        // https://github.com/ps4dev/ps4sdk/blob/4df9d001b66ae4ec07d9a51b62d1e4c5e270eecc/include/machine/param.h#L95
         .x86, .x86_64 => 4 << 10,
+        else => missing_min_page_size,
+    },
+    // https://github.com/PS5Dev/PS5SDK/blob/a2e03a2a0231a3a3397fa6cd087a01ca6d04f273/include/machine/param.h#L95
+    .ps5 => switch (builtin.os.tag) {
+        .x86, .x86_64 => 16 << 10,
         else => missing_min_page_size,
     },
     // system/lib/libc/musl/arch/emscripten/bits/limits.h
@@ -258,8 +269,19 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .sparc64 => 8 << 10,
         else => missing_max_page_size,
     },
-    .ps4, .ps5 => switch (builtin.cpu.arch) {
+    .ps3 => switch (builtin.os.tag) {
+        // cell/SDK_doc/en/html/C_and_C++_standard_libraries/stdlib.html
+        .powerpc64 => 1 << 20, // 1 MiB
+        else => missing_max_page_size,
+    },
+    .ps4 => switch (builtin.os.tag) {
+        // https://github.com/ps4dev/ps4sdk/blob/4df9d001b66ae4ec07d9a51b62d1e4c5e270eecc/include/machine/param.h#L95
         .x86, .x86_64 => 4 << 10,
+        else => missing_max_page_size,
+    },
+    // https://github.com/PS5Dev/PS5SDK/blob/a2e03a2a0231a3a3397fa6cd087a01ca6d04f273/include/machine/param.h#L95
+    .ps5 => switch (builtin.os.tag) {
+        .x86, .x86_64 => 16 << 10,
         else => missing_max_page_size,
     },
     // system/lib/libc/musl/arch/emscripten/bits/limits.h
