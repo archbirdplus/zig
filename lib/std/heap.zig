@@ -123,6 +123,8 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .x86, .x86_64 => 4 << 10,
         else => missing_min_page_size,
     },
+    // system/lib/libc/musl/arch/emscripten/bits/limits.h
+    .emscripten => 64 << 10,
     .linux => switch (builtin.cpu.arch) {
         // Linux/arch/*/Kconfig
         .arc => 4 << 10,
@@ -260,6 +262,8 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .x86, .x86_64 => 4 << 10,
         else => missing_max_page_size,
     },
+    // system/lib/libc/musl/arch/emscripten/bits/limits.h
+    .emscripten => 64 << 10,
     .linux => switch (builtin.cpu.arch) {
         // Linux/arch/*/Kconfig
         .arc => 16 << 10,
