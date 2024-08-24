@@ -107,6 +107,18 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .aarch64 => missing_min_page_size,
         else => missing_min_page_size,
     },
+    .plan9 => switch (builtin.cpu.arch) {
+        // 9front/sys/src/9/*/mem.h
+        .x86, .x86_64 => 4 << 10,
+        .arm, .armeb => 4 << 10,
+        .aarch64, .aarch64_be => 4 << 10,
+        .mips, .mipsel, .mips64, .mips64el => 4 << 10
+        .powerpc, .powerpcle, .powerpc64, .powerpc64le => 4 << 10,
+        .sparc => 4 << 10,
+        // Tim Newsham's port, not upstreamed
+        .sparc64 => 8 << 10,
+        else => missing_min_page_size,
+    },
     .linux => switch (builtin.cpu.arch) {
         // Linux/arch/*/Kconfig
         .arc => 4 << 10,
@@ -226,6 +238,18 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         // gnumach/*/include/mach/*/vm_param.h
         .x86, .x86_64 => 4 << 10,
         .aarch64 => missing_max_page_size,
+        else => missing_max_page_size,
+    },
+    .plan9 => switch (builtin.cpu.arch) {
+        // 9front/sys/src/9/*/mem.h
+        .x86, .x86_64 => 4 << 10,
+        .arm, .armeb => 4 << 10,
+        .aarch64, .aarch64_be => 64 << 10,
+        .mips, .mipsel, .mips64, .mips64el => 16 << 10,
+        .powerpc, .powerpcle, .powerpc64, .powerpc64le => 4 << 10,
+        .sparc => 4 << 10,
+        // Tim Newsham's port, not upstreamed
+        .sparc64 => 8 << 10,
         else => missing_max_page_size,
     },
     .linux => switch (builtin.cpu.arch) {
