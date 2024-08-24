@@ -119,6 +119,10 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .sparc64 => 8 << 10,
         else => missing_min_page_size,
     },
+    .ps4, .ps5 => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
+        else => missing_min_page_size,
+    },
     .linux => switch (builtin.cpu.arch) {
         // Linux/arch/*/Kconfig
         .arc => 4 << 10,
@@ -250,6 +254,10 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .sparc => 4 << 10,
         // Tim Newsham's port, not upstreamed
         .sparc64 => 8 << 10,
+        else => missing_max_page_size,
+    },
+    .ps4, .ps5 => switch (builtin.cpu.arch) {
+        .x86, .x86_64 => 4 << 10,
         else => missing_max_page_size,
     },
     .linux => switch (builtin.cpu.arch) {
