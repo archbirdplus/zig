@@ -18,8 +18,8 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
         else => missing_min_page_size,
     },
-    // -- <https://devblogs.microsoft.com/oldnewthing/20210510-00/?p=105200>
     .windows => switch (builtin.cpu.arch) {
+        // -- <https://devblogs.microsoft.com/oldnewthing/20210510-00/?p=105200>
         .x86, .x86_64 => 4 << 10,
         // SuperH => 4 << 10,
         .mips, .mipsel, .mips64, .mips64el => 4 << 10,
@@ -119,18 +119,18 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .sparc64 => 8 << 10,
         else => missing_min_page_size,
     },
-    .ps3 => switch (builtin.os.tag) {
+    .ps3 => switch (builtin.cpu.arch) {
         // cell/SDK_doc/en/html/C_and_C++_standard_libraries/stdlib.html
         .powerpc64 => 1 << 20, // 1 MiB
         else => missing_min_page_size,
     },
-    .ps4 => switch (builtin.os.tag) {
+    .ps4 => switch (builtin.cpu.arch) {
         // https://github.com/ps4dev/ps4sdk/blob/4df9d001b66ae4ec07d9a51b62d1e4c5e270eecc/include/machine/param.h#L95
         .x86, .x86_64 => 4 << 10,
         else => missing_min_page_size,
     },
-    // https://github.com/PS5Dev/PS5SDK/blob/a2e03a2a0231a3a3397fa6cd087a01ca6d04f273/include/machine/param.h#L95
-    .ps5 => switch (builtin.os.tag) {
+    .ps5 => switch (builtin.cpu.arch) {
+        // https://github.com/PS5Dev/PS5SDK/blob/a2e03a2a0231a3a3397fa6cd087a01ca6d04f273/include/machine/param.h#L95
         .x86, .x86_64 => 16 << 10,
         else => missing_min_page_size,
     },
@@ -169,8 +169,8 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
         else => missing_max_page_size,
     },
-    // -- <https://devblogs.microsoft.com/oldnewthing/20210510-00/?p=105200>
     .windows => switch (builtin.cpu.arch) {
+        // -- <https://devblogs.microsoft.com/oldnewthing/20210510-00/?p=105200>
         .x86, .x86_64 => 4 << 10,
         // SuperH => 4 << 10,
         .mips, .mipsel, .mips64, .mips64el => 4 << 10,
@@ -269,18 +269,18 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .sparc64 => 8 << 10,
         else => missing_max_page_size,
     },
-    .ps3 => switch (builtin.os.tag) {
+    .ps3 => switch (builtin.cpu.arch) {
         // cell/SDK_doc/en/html/C_and_C++_standard_libraries/stdlib.html
         .powerpc64 => 1 << 20, // 1 MiB
         else => missing_max_page_size,
     },
-    .ps4 => switch (builtin.os.tag) {
+    .ps4 => switch (builtin.cpu.arch) {
         // https://github.com/ps4dev/ps4sdk/blob/4df9d001b66ae4ec07d9a51b62d1e4c5e270eecc/include/machine/param.h#L95
         .x86, .x86_64 => 4 << 10,
         else => missing_max_page_size,
     },
-    // https://github.com/PS5Dev/PS5SDK/blob/a2e03a2a0231a3a3397fa6cd087a01ca6d04f273/include/machine/param.h#L95
-    .ps5 => switch (builtin.os.tag) {
+    .ps5 => switch (builtin.cpu.arch) {
+        // https://github.com/PS5Dev/PS5SDK/blob/a2e03a2a0231a3a3397fa6cd087a01ca6d04f273/include/machine/param.h#L95
         .x86, .x86_64 => 16 << 10,
         else => missing_max_page_size,
     },
