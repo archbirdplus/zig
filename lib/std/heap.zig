@@ -115,8 +115,6 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
         .mips, .mipsel, .mips64, .mips64el => 4 << 10,
         .powerpc, .powerpcle, .powerpc64, .powerpc64le => 4 << 10,
         .sparc => 4 << 10,
-        // Tim Newsham's port, not upstreamed
-        .sparc64 => 8 << 10,
         else => missing_min_page_size,
     },
     .ps3 => switch (builtin.cpu.arch) {
@@ -265,8 +263,6 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
         .mips, .mipsel, .mips64, .mips64el => 16 << 10,
         .powerpc, .powerpcle, .powerpc64, .powerpc64le => 4 << 10,
         .sparc => 4 << 10,
-        // Tim Newsham's port, not upstreamed
-        .sparc64 => 8 << 10,
         else => missing_max_page_size,
     },
     .ps3 => switch (builtin.cpu.arch) {
