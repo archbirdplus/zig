@@ -11,7 +11,7 @@ const windows = std.os.windows;
 const missing_min_page_size = @compileError("The Zig standard library is missing a min_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 const missing_max_page_size = @compileError("The Zig standard library is missing a max_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 
-/// Compile time minimum page size that the architecture/OS combination supports. Pointers aligned to the system's page size are aligned to at least `min_page_size`, but system calls such as `mmap` and `VirtualAlloc` may return pointers with much larger alignments.
+/// Compile-time minimum page size that this architecture/OS combination that the standard library supports. Pointers aligned to the system's page size are aligned to at least `min_page_size`, but system calls such as `mmap` and `VirtualAlloc` may return pointers with much larger alignments.
 pub const min_page_size: usize = switch (builtin.os.tag) {
     .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
@@ -160,7 +160,7 @@ pub const min_page_size: usize = switch (builtin.os.tag) {
     else => missing_min_page_size,
 };
 
-/// This value defines the largest page size for this architecture/OS combination that the standard library allows. The standard library asserts that `pageSize()` does not exceed `max_page_size`. Using a larger page size requires modifying an appropriate prong in the definition of `max_page_size`. See also the linker argument `-z max-page-size=`.
+/// Compile-time maximum page size for this architecture/OS combination that the standard library supports. The standard library asserts that `pageSize()` does not exceed `max_page_size`. Using a larger page size requires modifying an appropriate prong in the definition of `max_page_size`. See also the linker argument `-z max-page-size=`.
 pub const max_page_size: usize = switch (builtin.os.tag) {
     .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
@@ -308,7 +308,7 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
     else => missing_max_page_size,
 };
 
-// A cache used by queryPageSize() to avoid repeating syscalls.
+// A cache used by `queryPageSize()` to avoid repeating syscalls.
 var page_size_cache = std.atomic.Value(usize).init(0);
 
 /// Returns the system page size. If the page size is comptime-known, this function returns it directly. Otherwise, on first invocation, `pageSize()` queries the page size with the appropriate syscall. It then asserts that the page size is between `min_page_size` and `max_page_size`.
