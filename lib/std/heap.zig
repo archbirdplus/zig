@@ -326,7 +326,6 @@ fn queryPageSize() usize {
     var size = runtime_page_size.load(.unordered);
     if (size > 0) return size;
     size = switch (builtin.os.tag) {
-        .wasi => std.wasm.page_size,
         .linux => if (builtin.link_libc) @intCast(std.c.sysconf(std.c._SC.PAGESIZE)) else std.os.linux.getauxval(std.elf.AT_PAGESZ),
         .driverkit, .ios, .macos, .tvos, .visionos, .watchos => blk: {
             if (!builtin.link_libc)
@@ -1253,6 +1252,7 @@ test "pageSize() smoke test" {
 
 test "queryPageSize() smoke test" {
     // queryPageSize() does not always get called by pageSize()
+    if (builtin.cpu.arch.isWasm()) return error.SkipZigTest;
     const size = queryPageSize();
     // Check that pageSize is a power of 2.
     std.debug.assert(size & (size - 1) == 0);
