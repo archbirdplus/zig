@@ -311,10 +311,7 @@ pub const max_page_size: usize = switch (builtin.os.tag) {
 var runtime_page_size = std.atomic.Value(usize).init(0);
 
 /// Runtime detected page size.
-pub inline fn pageSize() usize {
-    if (@inComptime()) {
-        @compileError("pageSize() can only be determined at runtime");
-    }
+pub fn pageSize() usize {
     if (min_page_size == max_page_size) {
         return min_page_size;
     }
