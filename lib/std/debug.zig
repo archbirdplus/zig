@@ -1060,7 +1060,7 @@ test printLineFromFileAnyOs {
 
         const overlap = 10;
         var writer = file.writer();
-        try writer.writeByteNTimes('a', heap.pageSize() - overlap);
+        try writer.writeByteNTimes('a', heap.min_page_size - overlap);
         try writer.writeByte('\n');
         try writer.writeByteNTimes('a', overlap);
 
@@ -1113,7 +1113,7 @@ test printLineFromFileAnyOs {
         defer allocator.free(path);
 
         var writer = file.writer();
-        const real_file_start = 3 * heap.pageSize();
+        const real_file_start = 3 * heap.min_page_size;
         try writer.writeByteNTimes('\n', real_file_start);
         try writer.writeAll("abc\ndef");
 
