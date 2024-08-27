@@ -2208,33 +2208,33 @@ pub const SC = switch (native_os) {
 };
 
 pub const _SC = switch (native_os) {
-    .driverkit, .ios, .macos, .tvos, .visionos, .watchos => struct {
-        pub const PAGESIZE = 29;
+    .driverkit, .ios, .macos, .tvos, .visionos, .watchos => enum(c_int) {
+        PAGESIZE = 29,
     },
-    .dragonfly => struct {
-        pub const PAGESIZE = 47;
+    .dragonfly => enum(c_int) {
+        PAGESIZE = 47,
     },
-    .freebsd => struct {
-        pub const PAGESIZE = 47;
+    .freebsd => enum(c_int) {
+        PAGESIZE = 47,
     },
-    .fuchsia => struct {
-        pub const PAGESIZE = 30;
+    .fuchsia => enum(c_int) {
+        PAGESIZE = 30,
     },
-    .haiku => struct {
-        pub const PAGESIZE = 27;
+    .haiku => enum(c_int) {
+        PAGESIZE = 27,
     },
-    .linux => struct {
-        pub const PAGESIZE = 30;
+    .linux => enum(c_int) {
+        PAGESIZE = 30,
     },
-    .netbsd => struct {
-        pub const PAGESIZE = 28;
+    .netbsd => enum(c_int) {
+        PAGESIZE = 28,
     },
-    .openbsd => struct {
-        pub const PAGESIZE = 28;
+    .openbsd => enum(c_int) {
+        PAGESIZE = 28,
     },
-    .solaris => struct {
-        pub const PAGESIZE = 11;
-        pub const NPROCESSORS_ONLN = 15;
+    .solaris => enum(c_int) {
+        PAGESIZE = 11,
+        NPROCESSORS_ONLN = 15,
     },
     else => void,
 };

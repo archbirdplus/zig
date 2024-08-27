@@ -324,7 +324,7 @@ fn queryPageSize() usize {
     var size = page_size_cache.load(.unordered);
     if (size > 0) return size;
     size = switch (builtin.os.tag) {
-        .linux => if (builtin.link_libc) @intCast(std.c.sysconf(std.c._SC.PAGESIZE)) else std.os.linux.getauxval(std.elf.AT_PAGESZ),
+        .linux => if (builtin.link_libc) @intCast(std.c.sysconf(@intFromEnum(std.c._SC.PAGESIZE))) else std.os.linux.getauxval(std.elf.AT_PAGESZ),
         .driverkit, .ios, .macos, .tvos, .visionos, .watchos => blk: {
             if (!builtin.link_libc)
                 @compileError("querying page size on Darwin is not supported without linking libc");
@@ -351,7 +351,7 @@ fn queryPageSize() usize {
         },
         else => if (builtin.link_libc)
             if (std.c._SC != void and @hasDecl(std.c._SC, "PAGESIZE"))
-                @intCast(std.c.sysconf(std.c._SC.PAGESIZE))
+                @intCast(std.c.sysconf(@intFromEnum(std.c._SC.PAGESIZE)))
             else
                 @compileError("missing _SC.PAGESIZE declaration for " ++ @tagName(builtin.os.tag) ++ "-" ++ @tagName(builtin.os.tag))
         else
