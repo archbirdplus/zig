@@ -81,9 +81,10 @@ pub fn isValidMemory(address: usize) bool {
     // We are unable to determine validity of memory for freestanding targets
     if (native_os == .freestanding or native_os == .uefi) return true;
 
-    const aligned_address = address & ~(std.heap.pageSize() - 1);
+    const page_size = std.heap.pageSize();
+    const aligned_address = address & ~(page_size - 1);
     if (aligned_address == 0) return false;
-    const aligned_memory = @as([*]align(min_page_size) u8, @ptrFromInt(aligned_address))[0..std.heap.pageSize()];
+    const aligned_memory = @as([*]align(min_page_size) u8, @ptrFromInt(aligned_address))[0..page_size];
 
     if (native_os == .windows) {
         const windows = std.os.windows;
