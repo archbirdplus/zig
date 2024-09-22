@@ -55,6 +55,7 @@ pub fn testAll(b: *Build, build_opts: BuildOptions) *Step {
 
         // Exercise linker in ar mode
         elf_step.dependOn(testEmitStaticLib(b, .{ .target = musl_target }));
+        elf_step.dependOn(testEmitStaticLibZig(b, .{ .target = musl_target }));
 
         // Exercise linker with LLVM backend
         // musl tests
@@ -66,6 +67,7 @@ pub fn testAll(b: *Build, build_opts: BuildOptions) *Step {
         elf_step.dependOn(testEmptyObject(b, .{ .target = musl_target }));
         elf_step.dependOn(testEntryPoint(b, .{ .target = musl_target }));
         elf_step.dependOn(testGcSections(b, .{ .target = musl_target }));
+        elf_step.dependOn(testGcSectionsZig(b, .{ .target = musl_target }));
         elf_step.dependOn(testImageBase(b, .{ .target = musl_target }));
         elf_step.dependOn(testInitArrayOrder(b, .{ .target = musl_target }));
         elf_step.dependOn(testLargeAlignmentExe(b, .{ .target = musl_target }));
@@ -937,8 +939,8 @@ fn testEmitStaticLib(b: *Build, opts: Options) *Step {
         \\}
         \\export var strongBar: usize = 100;
         \\comptime {
-        \\    @export(weakFoo, .{ .name = "weakFoo", .linkage = .weak });
-        \\    @export(strongBar, .{ .name = "strongBarAlias", .linkage = .strong });
+        \\    @export(&weakFoo, .{ .name = "weakFoo", .linkage = .weak });
+        \\    @export(&strongBar, .{ .name = "strongBarAlias", .linkage = .strong });
         \\}
         ,
     });
@@ -2257,7 +2259,7 @@ fn testMismatchedCpuArchitectureError(b: *Build, opts: Options) *Step {
     exe.linkLibC();
 
     expectLinkErrors(exe, test_step, .{ .exact = &.{
-        "invalid cpu architecture: aarch64",
+        "invalid ELF machine type: AARCH64",
         "note: while parsing /?/a.o",
     } });
 
@@ -2973,44 +2975,27 @@ fn testStrip(b: *Build, opts: Options) *Step {
 fn testThunks(b: *Build, opts: Options) *Step {
     const test_step = addTestStep(b, "thunks", opts);
 
-    const src =
-        \\#include <stdio.h>
-        \\__attribute__((aligned(0x8000000))) int bar() {
-        \\  return 42;
-        \\}
-        \\int foobar();
-        \\int foo() {
-        \\  return bar() - foobar();
-        \\}
-        \\__attribute__((aligned(0x8000000))) int foobar() {
-        \\  return 42;
-        \\}
-        \\int main() {
-        \\  printf("bar=%d, foo=%d, foobar=%d", bar(), foo(), foobar());
-        \\  return foo();
-        \\}
-    ;
+    const exe = addExecutable(b, opts, .{ .name = "main", .c_source_bytes = 
+    \\void foo();
+    \\__attribute__((section(".bar"))) void bar() {
+    \\  return foo();
+    \\}
+    \\__attribute__((section(".foo"))) void foo() {
+    \\  return bar();
+    \\}
+    \\int main() {
+    \\  foo();
+    \\  bar();
+    \\  return 0;
+    \\}
+    });
 
-    {
-        const exe = addExecutable(b, opts, .{ .name = "main", .c_source_bytes = src });
-        exe.link_function_sections = true;
-        exe.linkLibC();
-
-        const run = addRunArtifact(exe);
-        run.expectStdOutEqual("bar=42, foo=0, foobar=42");
-        run.expectExitCode(0);
-        test_step.dependOn(&run.step);
-    }
-
-    {
-        const exe = addExecutable(b, opts, .{ .name = "main2", .c_source_bytes = src });
-        exe.linkLibC();
-
-        const run = addRunArtifact(exe);
-        run.expectStdOutEqual("bar=42, foo=0, foobar=42");
-        run.expectExitCode(0);
-        test_step.dependOn(&run.step);
-    }
+    const check = exe.checkObject();
+    check.checkInSymtab();
+    check.checkContains("foo$thunk");
+    check.checkInSymtab();
+    check.checkContains("bar$thunk");
+    test_step.dependOn(&check.step);
 
     return test_step;
 }

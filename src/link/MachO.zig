@@ -13,21 +13,21 @@ files: std.MultiArrayList(File.Entry) = .{},
 /// Long-lived list of all file descriptors.
 /// We store them globally rather than per actual File so that we can re-use
 /// one file handle per every object file within an archive.
-file_handles: std.ArrayListUnmanaged(File.Handle) = .{},
+file_handles: std.ArrayListUnmanaged(File.Handle) = .empty,
 zig_object: ?File.Index = null,
 internal_object: ?File.Index = null,
-objects: std.ArrayListUnmanaged(File.Index) = .{},
-dylibs: std.ArrayListUnmanaged(File.Index) = .{},
+objects: std.ArrayListUnmanaged(File.Index) = .empty,
+dylibs: std.ArrayListUnmanaged(File.Index) = .empty,
 
-segments: std.ArrayListUnmanaged(macho.segment_command_64) = .{},
+segments: std.ArrayListUnmanaged(macho.segment_command_64) = .empty,
 sections: std.MultiArrayList(Section) = .{},
 
 resolver: SymbolResolver = .{},
 /// This table will be populated after `scanRelocs` has run.
 /// Key is symbol index.
-undefs: std.AutoArrayHashMapUnmanaged(SymbolResolver.Index, std.ArrayListUnmanaged(Ref)) = .{},
+undefs: std.AutoArrayHashMapUnmanaged(SymbolResolver.Index, std.ArrayListUnmanaged(Ref)) = .empty,
 undefs_mutex: std.Thread.Mutex = .{},
-dupes: std.AutoArrayHashMapUnmanaged(SymbolResolver.Index, std.ArrayListUnmanaged(File.Index)) = .{},
+dupes: std.AutoArrayHashMapUnmanaged(SymbolResolver.Index, std.ArrayListUnmanaged(File.Index)) = .empty,
 dupes_mutex: std.Thread.Mutex = .{},
 
 dyld_info_cmd: macho.dyld_info_command = .{},
@@ -52,11 +52,11 @@ eh_frame_sect_index: ?u8 = null,
 unwind_info_sect_index: ?u8 = null,
 objc_stubs_sect_index: ?u8 = null,
 
-thunks: std.ArrayListUnmanaged(Thunk) = .{},
+thunks: std.ArrayListUnmanaged(Thunk) = .empty,
 
 /// Output synthetic sections
-symtab: std.ArrayListUnmanaged(macho.nlist_64) = .{},
-strtab: std.ArrayListUnmanaged(u8) = .{},
+symtab: std.ArrayListUnmanaged(macho.nlist_64) = .empty,
+strtab: std.ArrayListUnmanaged(u8) = .empty,
 indsymtab: Indsymtab = .{},
 got: GotSection = .{},
 stubs: StubsSection = .{},
@@ -64,10 +64,10 @@ stubs_helper: StubsHelperSection = .{},
 objc_stubs: ObjcStubsSection = .{},
 la_symbol_ptr: LaSymbolPtrSection = .{},
 tlv_ptr: TlvPtrSection = .{},
-rebase: Rebase = .{},
-bind: Bind = .{},
-weak_bind: WeakBind = .{},
-lazy_bind: LazyBind = .{},
+rebase_section: Rebase = .{},
+bind_section: Bind = .{},
+weak_bind_section: WeakBind = .{},
+lazy_bind_section: LazyBind = .{},
 export_trie: ExportTrie = .{},
 unwind_info: UnwindInfo = .{},
 data_in_code: DataInCode = .{},
@@ -156,7 +156,7 @@ pub fn hashAddFrameworks(man: *Cache.Manifest, hm: []const Framework) !void {
 pub fn createEmpty(
     arena: Allocator,
     comp: *Compilation,
-    emit: Compilation.Emit,
+    emit: Path,
     options: link.File.OpenOptions,
 ) !*MachO {
     const target = comp.root_mod.resolved_target.result;
@@ -164,7 +164,7 @@ pub fn createEmpty(
 
     const gpa = comp.gpa;
     const use_llvm = comp.config.use_llvm;
-    const opt_zcu = comp.module;
+    const opt_zcu = comp.zcu;
     const optimize_mode = comp.root_mod.optimize_mode;
     const output_mode = comp.config.output_mode;
     const link_mode = comp.config.link_mode;
@@ -221,7 +221,7 @@ pub fn createEmpty(
     }
     errdefer self.base.destroy();
 
-    self.base.file = try emit.directory.handle.createFile(emit.sub_path, .{
+    self.base.file = try emit.root_dir.handle.createFile(emit.sub_path, .{
         .truncate = true,
         .read = true,
         .mode = link.File.determineMode(false, output_mode, link_mode),
@@ -260,7 +260,7 @@ pub fn createEmpty(
 pub fn open(
     arena: Allocator,
     comp: *Compilation,
-    emit: Compilation.Emit,
+    emit: Path,
     options: link.File.OpenOptions,
 ) !*MachO {
     // TODO: restore saved linker state, don't truncate the file, and
@@ -324,10 +324,10 @@ pub fn deinit(self: *MachO) void {
     self.stubs.deinit(gpa);
     self.objc_stubs.deinit(gpa);
     self.tlv_ptr.deinit(gpa);
-    self.rebase.deinit(gpa);
-    self.bind.deinit(gpa);
-    self.weak_bind.deinit(gpa);
-    self.lazy_bind.deinit(gpa);
+    self.rebase_section.deinit(gpa);
+    self.bind_section.deinit(gpa);
+    self.weak_bind_section.deinit(gpa);
+    self.lazy_bind_section.deinit(gpa);
     self.export_trie.deinit(gpa);
     self.unwind_info.deinit(gpa);
     self.data_in_code.deinit(gpa);
@@ -353,7 +353,7 @@ pub fn flushModule(self: *MachO, arena: Allocator, tid: Zcu.PerThread.Id, prog_n
     const sub_prog_node = prog_node.start("MachO Flush", 0);
     defer sub_prog_node.end();
 
-    const directory = self.base.emit.directory;
+    const directory = self.base.emit.root_dir;
     const full_out_path = try directory.join(arena, &[_][]const u8{self.base.emit.sub_path});
     const module_obj_path: ?[]const u8 = if (self.base.zcu_object_sub_path) |path| blk: {
         if (fs.path.dirname(full_out_path)) |dirname| {
@@ -586,7 +586,7 @@ pub fn flushModule(self: *MachO, arena: Allocator, tid: Zcu.PerThread.Id, prog_n
     if (codesig) |*csig| {
         try self.writeCodeSignature(csig); // code signing always comes last
         const emit = self.base.emit;
-        try invalidateKernelCache(emit.directory.handle, emit.sub_path);
+        try invalidateKernelCache(emit.root_dir.handle, emit.sub_path);
     }
 }
 
@@ -597,7 +597,7 @@ fn dumpArgv(self: *MachO, comp: *Compilation) !void {
     defer arena_allocator.deinit();
     const arena = arena_allocator.allocator();
 
-    const directory = self.base.emit.directory;
+    const directory = self.base.emit.root_dir;
     const full_out_path = try directory.join(arena, &[_][]const u8{self.base.emit.sub_path});
     const module_obj_path: ?[]const u8 = if (self.base.zcu_object_sub_path) |path| blk: {
         if (fs.path.dirname(full_out_path)) |dirname| {
@@ -921,7 +921,7 @@ fn parseInputFileWorker(self: *MachO, file: File) void {
             error.MalformedObject,
             error.MalformedDylib,
             error.MalformedTbd,
-            error.InvalidCpuArch,
+            error.InvalidMachineType,
             error.InvalidTarget,
             => {}, // already reported
             else => |e| self.reportParseError2(file.getIndex(), "unexpected error: parsing input file failed with error {s}", .{@errorName(e)}) catch {},
@@ -1909,7 +1909,7 @@ fn calcSectionSizes(self: *MachO) !void {
             }
         }
 
-        // At this point, we can also calculate symtab and data-in-code linkedit section sizes
+        // At this point, we can also calculate most of the symtab and data-in-code linkedit section sizes
         if (self.getZigObject()) |zo| {
             tp.spawnWg(&wg, File.calcSymtabSize, .{ zo.asFile(), self });
         }
@@ -2005,7 +2005,7 @@ fn calcSectionSizeWorker(self: *MachO, sect_id: u8) void {
 fn createThunksWorker(self: *MachO, sect_id: u8) void {
     const tracy = trace(@src());
     defer tracy.end();
-    thunks.createThunks(sect_id, self) catch |err| {
+    self.createThunks(sect_id) catch |err| {
         const header = self.sections.items(.header)[sect_id];
         self.reportUnexpectedError("failed to create thunks and calculate size of section '{s},{s}': {s}", .{
             header.segName(),
@@ -2463,6 +2463,9 @@ fn writeSectionsAndUpdateLinkeditSizes(self: *MachO) !void {
         if (self.getInternalObject()) |obj| {
             tp.spawnWg(&wg, File.writeSymtab, .{ obj.asFile(), self, self });
         }
+        if (self.requiresThunks()) for (self.thunks.items) |th| {
+            tp.spawnWg(&wg, Thunk.writeSymtab, .{ th, self, self });
+        };
     }
 
     if (self.has_errors.swap(false, .seq_cst)) return error.FlushFailure;
@@ -2559,7 +2562,7 @@ fn updateLazyBindSizeWorker(self: *MachO) void {
     defer tracy.end();
     const doWork = struct {
         fn doWork(macho_file: *MachO) !void {
-            try macho_file.lazy_bind.updateSize(macho_file);
+            try macho_file.lazy_bind_section.updateSize(macho_file);
             const sect_id = macho_file.stubs_helper_sect_index.?;
             const out = &macho_file.sections.items(.out)[sect_id];
             var stream = std.io.fixedBufferStream(out.items);
@@ -2582,9 +2585,9 @@ pub fn updateLinkeditSizeWorker(self: *MachO, tag: enum {
     data_in_code,
 }) void {
     const res = switch (tag) {
-        .rebase => self.rebase.updateSize(self),
-        .bind => self.bind.updateSize(self),
-        .weak_bind => self.weak_bind.updateSize(self),
+        .rebase => self.rebase_section.updateSize(self),
+        .bind => self.bind_section.updateSize(self),
+        .weak_bind => self.weak_bind_section.updateSize(self),
         .export_trie => self.export_trie.updateSize(self),
         .data_in_code => self.data_in_code.updateSize(self),
     };
@@ -2637,13 +2640,13 @@ fn writeDyldInfo(self: *MachO) !void {
     var stream = std.io.fixedBufferStream(buffer);
     const writer = stream.writer();
 
-    try self.rebase.write(writer);
+    try self.rebase_section.write(writer);
     try stream.seekTo(cmd.bind_off - base_off);
-    try self.bind.write(writer);
+    try self.bind_section.write(writer);
     try stream.seekTo(cmd.weak_bind_off - base_off);
-    try self.weak_bind.write(writer);
+    try self.weak_bind_section.write(writer);
     try stream.seekTo(cmd.lazy_bind_off - base_off);
-    try self.lazy_bind.write(writer);
+    try self.lazy_bind_section.write(writer);
     try stream.seekTo(cmd.export_off - base_off);
     try self.export_trie.write(writer);
     try self.base.file.?.pwriteAll(buffer, cmd.rebase_off);
@@ -2724,6 +2727,14 @@ fn calcSymtabSize(self: *MachO) !void {
     var nexports: u32 = 0;
     var nimports: u32 = 0;
     var strsize: u32 = 1;
+
+    if (self.requiresThunks()) for (self.thunks.items) |*th| {
+        th.output_symtab_ctx.ilocal = nlocals;
+        th.output_symtab_ctx.stroff = strsize;
+        th.calcSymtabSize(self);
+        nlocals += th.output_symtab_ctx.nlocals;
+        strsize += th.output_symtab_ctx.strsize;
+    };
 
     for (files.items) |index| {
         const file = self.getFile(index).?;
@@ -3015,7 +3026,7 @@ pub fn updateNavLineNumber(self: *MachO, pt: Zcu.PerThread, nav: InternPool.NavI
 pub fn updateExports(
     self: *MachO,
     pt: Zcu.PerThread,
-    exported: Module.Exported,
+    exported: Zcu.Exported,
     export_indices: []const u32,
 ) link.File.UpdateExportsError!void {
     if (build_options.skip_non_native and builtin.object_format != .macho) {
@@ -3049,7 +3060,7 @@ pub fn lowerUav(
     pt: Zcu.PerThread,
     uav: InternPool.Index,
     explicit_alignment: InternPool.Alignment,
-    src_loc: Module.LazySrcLoc,
+    src_loc: Zcu.LazySrcLoc,
 ) !codegen.GenResult {
     return self.getZigObject().?.lowerUav(self, pt, uav, explicit_alignment, src_loc);
 }
@@ -3199,7 +3210,7 @@ fn copyRangeAllZeroOut(self: *MachO, old_offset: u64, new_offset: u64, size: u64
 }
 
 const InitMetadataOptions = struct {
-    emit: Compilation.Emit,
+    emit: Path,
     zo: *ZigObject,
     symbol_count_hint: u64,
     program_code_size_hint: u64,
@@ -3271,7 +3282,7 @@ fn initMetadata(self: *MachO, options: InitMetadataOptions) !void {
             );
             defer gpa.free(d_sym_path);
 
-            var d_sym_bundle = try options.emit.directory.handle.makeOpenPath(d_sym_path, .{});
+            var d_sym_bundle = try options.emit.root_dir.handle.makeOpenPath(d_sym_path, .{});
             defer d_sym_bundle.close();
 
             const d_sym_file = try d_sym_bundle.createFile(options.emit.sub_path, .{
@@ -3400,9 +3411,7 @@ fn growSectionNonRelocatable(self: *MachO, sect_index: u8, needed_size: u64) !vo
 
     if (!sect.isZerofill()) {
         const allocated_size = self.allocatedSize(sect.offset);
-        if (sect.offset + allocated_size == std.math.maxInt(u64)) {
-            try self.base.file.?.setEndPos(sect.offset + needed_size);
-        } else if (needed_size > allocated_size) {
+        if (needed_size > allocated_size) {
             const existing_size = sect.size;
             sect.size = 0;
 
@@ -3420,6 +3429,8 @@ fn growSectionNonRelocatable(self: *MachO, sect_index: u8, needed_size: u64) !vo
             try self.copyRangeAllZeroOut(sect.offset, new_offset, existing_size);
 
             sect.offset = @intCast(new_offset);
+        } else if (sect.offset + allocated_size == std.math.maxInt(u64)) {
+            try self.base.file.?.setEndPos(sect.offset + needed_size);
         }
         seg.filesize = needed_size;
     }
@@ -3445,9 +3456,7 @@ fn growSectionRelocatable(self: *MachO, sect_index: u8, needed_size: u64) !void 
 
     if (!sect.isZerofill()) {
         const allocated_size = self.allocatedSize(sect.offset);
-        if (sect.offset + allocated_size == std.math.maxInt(u64)) {
-            try self.base.file.?.setEndPos(sect.offset + needed_size);
-        } else if (needed_size > allocated_size) {
+        if (needed_size > allocated_size) {
             const existing_size = sect.size;
             sect.size = 0;
 
@@ -3469,6 +3478,8 @@ fn growSectionRelocatable(self: *MachO, sect_index: u8, needed_size: u64) !void 
 
             sect.offset = @intCast(new_offset);
             sect.addr = new_addr;
+        } else if (sect.offset + allocated_size == std.math.maxInt(u64)) {
+            try self.base.file.?.setEndPos(sect.offset + needed_size);
         }
     }
     sect.size = needed_size;
@@ -4030,19 +4041,19 @@ const default_entry_symbol_name = "_main";
 const Section = struct {
     header: macho.section_64,
     segment_id: u8,
-    atoms: std.ArrayListUnmanaged(Ref) = .{},
-    free_list: std.ArrayListUnmanaged(Atom.Index) = .{},
+    atoms: std.ArrayListUnmanaged(Ref) = .empty,
+    free_list: std.ArrayListUnmanaged(Atom.Index) = .empty,
     last_atom_index: Atom.Index = 0,
-    thunks: std.ArrayListUnmanaged(Thunk.Index) = .{},
-    out: std.ArrayListUnmanaged(u8) = .{},
-    relocs: std.ArrayListUnmanaged(macho.relocation_info) = .{},
+    thunks: std.ArrayListUnmanaged(Thunk.Index) = .empty,
+    out: std.ArrayListUnmanaged(u8) = .empty,
+    relocs: std.ArrayListUnmanaged(macho.relocation_info) = .empty,
 };
 
 pub const LiteralPool = struct {
-    table: std.AutoArrayHashMapUnmanaged(void, void) = .{},
-    keys: std.ArrayListUnmanaged(Key) = .{},
-    values: std.ArrayListUnmanaged(MachO.Ref) = .{},
-    data: std.ArrayListUnmanaged(u8) = .{},
+    table: std.AutoArrayHashMapUnmanaged(void, void) = .empty,
+    keys: std.ArrayListUnmanaged(Key) = .empty,
+    values: std.ArrayListUnmanaged(MachO.Ref) = .empty,
+    data: std.ArrayListUnmanaged(u8) = .empty,
 
     pub fn deinit(lp: *LiteralPool, allocator: Allocator) void {
         lp.table.deinit(allocator);
@@ -4469,9 +4480,9 @@ pub const Ref = struct {
 };
 
 pub const SymbolResolver = struct {
-    keys: std.ArrayListUnmanaged(Key) = .{},
-    values: std.ArrayListUnmanaged(Ref) = .{},
-    table: std.AutoArrayHashMapUnmanaged(void, void) = .{},
+    keys: std.ArrayListUnmanaged(Key) = .empty,
+    values: std.ArrayListUnmanaged(Ref) = .empty,
+    table: std.AutoArrayHashMapUnmanaged(void, void) = .empty,
 
     const Result = struct {
         found_existing: bool,
@@ -4591,7 +4602,6 @@ const load_commands = @import("MachO/load_commands.zig");
 const relocatable = @import("MachO/relocatable.zig");
 const tapi = @import("tapi.zig");
 const target_util = @import("../target.zig");
-const thunks = @import("MachO/thunks.zig");
 const trace = @import("../tracy.zig").trace;
 const synthetic = @import("MachO/synthetic.zig");
 
@@ -4603,6 +4613,7 @@ pub const Atom = @import("MachO/Atom.zig");
 const AtomicBool = std.atomic.Value(bool);
 const Bind = bind.Bind;
 const Cache = std.Build.Cache;
+const Path = Cache.Path;
 const CodeSignature = @import("MachO/CodeSignature.zig");
 const Compilation = @import("../Compilation.zig");
 const DataInCode = synthetic.DataInCode;
@@ -4622,8 +4633,6 @@ const Liveness = @import("../Liveness.zig");
 const LlvmObject = @import("../codegen/llvm.zig").Object;
 const Md5 = std.crypto.hash.Md5;
 const Zcu = @import("../Zcu.zig");
-/// Deprecated.
-const Module = Zcu;
 const InternPool = @import("../InternPool.zig");
 const Rebase = @import("MachO/dyld_info/Rebase.zig");
 pub const Relocation = @import("MachO/Relocation.zig");
@@ -4631,7 +4640,7 @@ const StringTable = @import("StringTable.zig");
 const StubsSection = synthetic.StubsSection;
 const StubsHelperSection = synthetic.StubsHelperSection;
 const Symbol = @import("MachO/Symbol.zig");
-const Thunk = thunks.Thunk;
+const Thunk = @import("MachO/Thunk.zig");
 const TlvPtrSection = synthetic.TlvPtrSection;
 const Value = @import("../Value.zig");
 const UnwindInfo = @import("MachO/UnwindInfo.zig");
@@ -5282,3 +5291,96 @@ pub const KernE = enum(u32) {
     NOT_FOUND = 56,
     _,
 };
+
+fn createThunks(macho_file: *MachO, sect_id: u8) !void {
+    const tracy = trace(@src());
+    defer tracy.end();
+
+    const gpa = macho_file.base.comp.gpa;
+    const slice = macho_file.sections.slice();
+    const header = &slice.items(.header)[sect_id];
+    const thnks = &slice.items(.thunks)[sect_id];
+    const atoms = slice.items(.atoms)[sect_id].items;
+    assert(atoms.len > 0);
+
+    for (atoms) |ref| {
+        ref.getAtom(macho_file).?.value = @bitCast(@as(i64, -1));
+    }
+
+    var i: usize = 0;
+    while (i < atoms.len) {
+        const start = i;
+        const start_atom = atoms[start].getAtom(macho_file).?;
+        assert(start_atom.isAlive());
+        start_atom.value = advanceSection(header, start_atom.size, start_atom.alignment);
+        i += 1;
+
+        while (i < atoms.len and
+            header.size - start_atom.value < max_allowed_distance) : (i += 1)
+        {
+            const atom = atoms[i].getAtom(macho_file).?;
+            assert(atom.isAlive());
+            atom.value = advanceSection(header, atom.size, atom.alignment);
+        }
+
+        // Insert a thunk at the group end
+        const thunk_index = try macho_file.addThunk();
+        const thunk = macho_file.getThunk(thunk_index);
+        thunk.out_n_sect = sect_id;
+        try thnks.append(gpa, thunk_index);
+
+        // Scan relocs in the group and create trampolines for any unreachable callsite
+        try scanThunkRelocs(thunk_index, gpa, atoms[start..i], macho_file);
+        thunk.value = advanceSection(header, thunk.size(), .@"4");
+
+        log.debug("thunk({d}) : {}", .{ thunk_index, thunk.fmt(macho_file) });
+    }
+}
+
+fn advanceSection(sect: *macho.section_64, adv_size: u64, alignment: Atom.Alignment) u64 {
+    const offset = alignment.forward(sect.size);
+    const padding = offset - sect.size;
+    sect.size += padding + adv_size;
+    sect.@"align" = @max(sect.@"align", alignment.toLog2Units());
+    return offset;
+}
+
+fn scanThunkRelocs(thunk_index: Thunk.Index, gpa: Allocator, atoms: []const MachO.Ref, macho_file: *MachO) !void {
+    const tracy = trace(@src());
+    defer tracy.end();
+
+    const thunk = macho_file.getThunk(thunk_index);
+
+    for (atoms) |ref| {
+        const atom = ref.getAtom(macho_file).?;
+        log.debug("atom({d}) {s}", .{ atom.atom_index, atom.getName(macho_file) });
+        for (atom.getRelocs(macho_file)) |rel| {
+            if (rel.type != .branch) continue;
+            if (isReachable(atom, rel, macho_file)) continue;
+            try thunk.symbols.put(gpa, rel.getTargetSymbolRef(atom.*, macho_file), {});
+        }
+        atom.addExtra(.{ .thunk = thunk_index }, macho_file);
+    }
+}
+
+fn isReachable(atom: *const Atom, rel: Relocation, macho_file: *MachO) bool {
+    const target = rel.getTargetSymbol(atom.*, macho_file);
+    if (target.getSectionFlags().stubs or target.getSectionFlags().objc_stubs) return false;
+    if (atom.out_n_sect != target.getOutputSectionIndex(macho_file)) return false;
+    const target_atom = target.getAtom(macho_file).?;
+    if (target_atom.value == @as(u64, @bitCast(@as(i64, -1)))) return false;
+    const saddr = @as(i64, @intCast(atom.getAddress(macho_file))) + @as(i64, @intCast(rel.offset - atom.off));
+    const taddr: i64 = @intCast(rel.getTargetAddress(atom.*, macho_file));
+    _ = math.cast(i28, taddr + rel.addend - saddr) orelse return false;
+    return true;
+}
+
+/// Branch instruction has 26 bits immediate but is 4 byte aligned.
+const jump_bits = @bitSizeOf(i28);
+const max_distance = (1 << (jump_bits - 1));
+
+/// A branch will need an extender if its target is larger than
+/// `2^(jump_bits - 1) - margin` where margin is some arbitrary number.
+/// mold uses 5MiB margin, while ld64 uses 4MiB margin. We will follow mold
+/// and assume margin to be 5MiB.
+const max_allowed_distance = max_distance - 0x500_000;

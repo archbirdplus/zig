@@ -93,6 +93,8 @@ pub fn RegisterManager(
             comptime set: []const Register,
             reg: Register,
         ) ?std.math.IntFittingRange(0, set.len - 1) {
+            @setEvalBranchQuota(3000);
+
             const Id = @TypeOf(reg.id());
             comptime var min_id: Id = std.math.maxInt(Id);
             comptime var max_id: Id = std.math.minInt(Id);
@@ -514,7 +516,7 @@ fn MockFunction(comptime Register: type) type {
     return struct {
         allocator: Allocator,
         register_manager: Register.RM = .{},
-        spilled: std.ArrayListUnmanaged(Register) = .{},
+        spilled: std.ArrayListUnmanaged(Register) = .empty,
 
         const Self = @This();
 
