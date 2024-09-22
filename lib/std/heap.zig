@@ -309,6 +309,8 @@ pub const min_page_size: usize = maybe_min_page_size orelse @compileError("The Z
 /// Compile-time maximum page size for this architecture/OS combination that the standard library supports. The standard library asserts that `pageSize()` does not exceed `max_page_size`. Using a larger page size requires modifying an appropriate prong in the definition of `max_page_size`. See also the linker argument `-z max-page-size=`.
 pub const max_page_size: usize = maybe_max_page_size orelse @compileError("The Zig standard library is missing a max_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 
+pub const page_alignment = maybe_min_page_size orelse 1;
+
 pub const has_page_size_bounds = maybe_min_page_size != null and maybe_max_page_size != null;
 
 // A cache used by `queryPageSize()` to avoid repeating syscalls.
@@ -390,7 +392,7 @@ pub const MemoryPoolExtra = memory_pool.MemoryPoolExtra;
 pub const MemoryPoolOptions = memory_pool.Options;
 
 /// TODO Utilize this on Windows.
-pub var next_mmap_addr_hint: ?[*]align(min_page_size) u8 = null;
+pub var next_mmap_addr_hint: ?[*]align(page_alignment) u8 = null;
 
 const CAllocator = struct {
     comptime {
@@ -979,7 +981,7 @@ test "PageAllocator" {
     }
 
     if (builtin.os.tag == .windows) {
-        const slice = try allocator.alignedAlloc(u8, min_page_size, 128);
+        const slice = try allocator.alignedAlloc(u8, page_alignment, 128);
         slice[0] = 0x12;
         slice[127] = 0x34;
         allocator.free(slice);

@@ -7,7 +7,6 @@ const native_os = builtin.os.tag;
 const std = @import("../std.zig");
 const posix = std.posix;
 const File = std.fs.File;
-const min_page_size = std.heap.min_page_size;
 
 const MemoryAccessor = @This();
 
@@ -84,7 +83,7 @@ pub fn isValidMemory(address: usize) bool {
     const page_size = std.heap.pageSize();
     const aligned_address = address & ~(page_size - 1);
     if (aligned_address == 0) return false;
-    const aligned_memory = @as([*]align(min_page_size) u8, @ptrFromInt(aligned_address))[0..page_size];
+    const aligned_memory = @as([*]align(std.heap.page_alignment) u8, @ptrFromInt(aligned_address))[0..page_size];
 
     if (native_os == .windows) {
         const windows = std.os.windows;
