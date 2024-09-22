@@ -162,6 +162,7 @@ pub const Check = enum { ok, leak };
 var small_bucket_count_cache = std.atomic.Value(usize).init(0);
 var largest_bucket_object_size_cache = std.atomic.Value(usize).init(0);
 
+/// Default initialization of this struct is deprecated; use `.init` instead.
 pub fn GeneralPurposeAllocator(comptime config: Config) type {
     return struct {
         backing_allocator: Allocator = std.heap.page_allocator,
@@ -182,8 +183,8 @@ pub fn GeneralPurposeAllocator(comptime config: Config) type {
         /// The initial state of a `GeneralPurposeAllocator`, containing no allocations and backed by the system page allocator.
         pub const init: Self = .{
             .backing_allocator = std.heap.page_allocator,
-            .buckets = [1]Buckets{.{}} ** small_bucket_count,
-            .cur_buckets = [1]?*BucketHeader{null} ** small_bucket_count,
+            .buckets = [1]Buckets{.{}} ** small_bucket_count_max,
+            .cur_buckets = [1]?*BucketHeader{null} ** small_bucket_count_max,
             .large_allocations = .{},
             .empty_buckets = if (config.retain_metadata) .{} else {},
             .bucket_node_pool = .init(std.heap.page_allocator),
