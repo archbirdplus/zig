@@ -1703,7 +1703,6 @@ pub fn maxIntAlignment(target: std.Target, use_llvm: bool) u16 {
         .spirv32,
         .ve,
         .spirv64,
-        .dxil,
         .loongarch32,
         .loongarch64,
         .xtensa,
@@ -2678,11 +2677,11 @@ pub fn onePossibleValue(starting_type: Type, pt: Zcu.PerThread) !?Value {
                 const only_field_ty = union_obj.field_types.get(ip)[0];
                 const val_val = (try Type.fromInterned(only_field_ty).onePossibleValue(pt)) orelse
                     return null;
-                const only = try pt.intern(.{ .un = .{
+                const only = try pt.internUnion(.{
                     .ty = ty.toIntern(),
                     .tag = tag_val.toIntern(),
                     .val = val_val.toIntern(),
-                } });
+                });
                 return Value.fromInterned(only);
             },
             .opaque_type => return null,

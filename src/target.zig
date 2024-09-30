@@ -104,7 +104,6 @@ pub fn hasLlvmSupport(target: std.Target, ofmt: std.Target.ObjectFormat) bool {
         => return false,
 
         .coff,
-        .dxcontainer,
         .elf,
         .goff,
         .hex,
@@ -161,7 +160,6 @@ pub fn hasLlvmSupport(target: std.Target, ofmt: std.Target.ObjectFormat) bool {
         => true,
 
         // An LLVM backend exists but we don't currently support using it.
-        .dxil,
         .spirv,
         .spirv32,
         .spirv64,
@@ -586,14 +584,6 @@ pub inline fn backendSupportsFeature(backend: std.builtin.CompilerBackend, compt
             .stage2_x86_64,
             .stage2_riscv64,
             => true,
-            else => false,
-        },
-        .panic_unwrap_error => switch (backend) {
-            .stage2_c, .stage2_llvm => true,
-            else => false,
-        },
-        .safety_check_formatted => switch (backend) {
-            .stage2_c, .stage2_llvm => true,
             else => false,
         },
         .error_return_trace => switch (backend) {

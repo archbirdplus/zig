@@ -195,7 +195,6 @@ job_queued_compiler_rt_obj: bool = false,
 job_queued_fuzzer_lib: bool = false,
 job_queued_update_builtin_zig: bool,
 alloc_failure_occurred: bool = false,
-formatted_panics: bool = false,
 last_update_was_cache_hit: bool = false,
 
 c_source_files: []const CSourceFile,
@@ -1088,7 +1087,6 @@ pub const CreateOptions = struct {
     /// executable this field is ignored.
     want_compiler_rt: ?bool = null,
     want_lto: ?bool = null,
-    formatted_panics: ?bool = null,
     function_sections: bool = false,
     data_sections: bool = false,
     no_builtin: bool = false,
@@ -1357,9 +1355,6 @@ pub fn create(gpa: Allocator, arena: Allocator, options: CreateOptions) !*Compil
             }
         }
 
-        // TODO: https://github.com/ziglang/zig/issues/17969
-        const formatted_panics = options.formatted_panics orelse (options.root_mod.optimize_mode == .Debug);
-
         const error_limit = options.error_limit orelse (std.math.maxInt(u16) - 1);
 
         // We put everything into the cache hash that *cannot be modified
@@ -1520,7 +1515,6 @@ pub fn create(gpa: Allocator, arena: Allocator, options: CreateOptions) !*Compil
             .verbose_link = options.verbose_link,
             .disable_c_depfile = options.disable_c_depfile,
             .reference_trace = options.reference_trace,
-            .formatted_panics = formatted_panics,
             .time_report = options.time_report,
             .stack_report = options.stack_report,
             .test_filters = options.test_filters,
@@ -1638,7 +1632,6 @@ pub fn create(gpa: Allocator, arena: Allocator, options: CreateOptions) !*Compil
                 hash.addListOfBytes(options.test_filters);
                 hash.addOptionalBytes(options.test_name_prefix);
                 hash.add(options.skip_linker_dependencies);
-                hash.add(formatted_panics);
                 hash.add(options.emit_h != null);
                 hash.add(error_limit);
 
@@ -2564,7 +2557,6 @@ fn addNonIncrementalStuffToCacheManifest(
         man.hash.addListOfBytes(comp.test_filters);
         man.hash.addOptionalBytes(comp.test_name_prefix);
         man.hash.add(comp.skip_linker_dependencies);
-        man.hash.add(comp.formatted_panics);
         //man.hash.add(mod.emit_h != null);
         man.hash.add(mod.error_limit);
     } else {
@@ -5382,15 +5374,15 @@ pub fn addCCArgs(
             try argv.append("-D_LIBCPP_HAS_MUSL_LIBC");
         }
         try argv.append("-D_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS");
-        try argv.append("-D_LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS");
         try argv.append("-D_LIBCPP_HAS_NO_VENDOR_AVAILABILITY_ANNOTATIONS");
+        try argv.append("-D_LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS");
 
         if (!comp.config.any_non_single_threaded) {
             try argv.append("-D_LIBCPP_HAS_NO_THREADS");
         }
 
         // See the comment in libcxx.zig for more details about this.
-        try argv.append("-D_LIBCPP_PSTL_CPU_BACKEND_SERIAL");
+        try argv.append("-D_LIBCPP_PSTL_BACKEND_SERIAL");
 
         try argv.append(try std.fmt.allocPrint(arena, "-D_LIBCPP_ABI_VERSION={d}", .{
             @intFromEnum(comp.libcxx_abi_version),
