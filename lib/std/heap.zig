@@ -303,20 +303,35 @@ const maybe_max_page_size: ?usize = switch (builtin.os.tag) {
     else => null,
 };
 
-/// Compile-time minimum page size that this architecture/OS combination that the standard library supports. Pointers aligned to the system's page size are aligned to at least `min_page_size`, but system calls such as `mmap` and `VirtualAlloc` may return pointers with much larger alignments.
+/// The compile-time minimum page size that the target might have.
+/// If this value is not explicitly known to the standard library, using it will be a compile error.
+/// The actual page size can only be determined at runtime with `pageSize()`.
 pub const min_page_size: usize = maybe_min_page_size orelse @compileError("The Zig standard library is missing a min_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 
-/// Compile-time maximum page size for this architecture/OS combination that the standard library supports. The standard library asserts that `pageSize()` does not exceed `max_page_size`. Using a larger page size requires modifying an appropriate prong in the definition of `max_page_size`. See also the linker argument `-z max-page-size=`.
+/// The compile-time maximum page size that the target might have.
+/// If this value is not explicitly known to the standard library, using it will be a compile error.
+/// The actual page size can only be determined at runtime with `pageSize()`.
+///
+/// Targeting a system with a larger page size requires modifying the standard library, as well as passing the linker argument `-z max-page-size=`.
 pub const max_page_size: usize = maybe_max_page_size orelse @compileError("The Zig standard library is missing a max_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 
+/// The minimum alignment of pointers to system pages.
+/// All pointers from `mmap` or `VirtualAlloc` are aligned to at least this value,
+/// but the actual alignment may be much bigger.
+/// This is equal to `min_page_size`, but defaults to 1 instead of a compile error if not explicitly known.
+/// The actual page size can only be determined at runtime with `pageSize()`.
 pub const page_alignment = maybe_min_page_size orelse 1;
 
+/// Tells whether `min_page_size` and `max_page_size` can be used without a compile error.
 pub const has_page_size_bounds = maybe_min_page_size != null and maybe_max_page_size != null;
 
 // A cache used by `queryPageSize()` to avoid repeating syscalls.
 var page_size_cache = std.atomic.Value(usize).init(0);
 
-/// Returns the system page size. If the page size is comptime-known, this function returns it directly. Otherwise, on first invocation, `pageSize()` queries the page size with the appropriate syscall. It then asserts that the page size is between `min_page_size` and `max_page_size`.
+/// Returns the system page size.
+/// If the page size is comptime-known, `pageSize()` returns it directly.
+/// If the page size is not comptime-known, `pageSize()` will cache the result of the appropriate syscall.
+/// `pageSize()` asserts that the page size lies between `min_page_size` and `max_page_size`.
 pub fn pageSize() usize {
     if (has_page_size_bounds and min_page_size == max_page_size) {
         return min_page_size;
@@ -324,7 +339,7 @@ pub fn pageSize() usize {
     return queryPageSize();
 }
 
-// Helper method for queryPageSize().
+// Helper method for pageSize().
 fn queryPageSize() usize {
     var size = page_size_cache.load(.unordered);
     if (size > 0) return size;
