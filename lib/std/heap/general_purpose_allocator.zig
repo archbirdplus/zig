@@ -102,10 +102,11 @@ const Allocator = std.mem.Allocator;
 const page_alignment = std.heap.page_alignment;
 const max_page_size = std.heap.max_page_size;
 const pageSize = std.heap.pageSize;
+const has_page_size_bounds = std.heap.has_page_size_bounds;
 const StackTrace = std.builtin.StackTrace;
 
 /// Integer type for pointing to slots in a small allocation
-const SlotIndex = std.meta.Int(.unsigned, math.log2(max_page_size) + 1);
+const SlotIndex = std.meta.Int(.unsigned, math.log2(if (has_page_size_bounds) max_page_size else 4096) + 1);
 
 const default_test_stack_trace_frames: usize = if (builtin.is_test) 10 else 6;
 const default_sys_stack_trace_frames: usize = if (std.debug.sys_can_stack_trace) default_test_stack_trace_frames else 0;
@@ -159,15 +160,15 @@ pub const Config = struct {
 
 pub const Check = enum { ok, leak };
 
-var small_bucket_count_cache = std.atomic.Value(usize).init(0);
-var largest_bucket_object_size_cache = std.atomic.Value(usize).init(0);
+var used_small_bucket_count_cache = std.atomic.Value(usize).init(0);
+var largest_used_bucket_object_size_cache = std.atomic.Value(usize).init(0);
 
 /// Default initialization of this struct is deprecated; use `.init` instead.
 pub fn GeneralPurposeAllocator(comptime config: Config) type {
     return struct {
         backing_allocator: Allocator = std.heap.page_allocator,
-        buckets: [small_bucket_count_max]Buckets = [1]Buckets{Buckets{}} ** small_bucket_count_max,
-        cur_buckets: [small_bucket_count_max]?*BucketHeader = [1]?*BucketHeader{null} ** small_bucket_count_max,
+        buckets: [small_bucket_count]Buckets = [1]Buckets{Buckets{}} ** small_bucket_count,
+        cur_buckets: [small_bucket_count]?*BucketHeader = [1]?*BucketHeader{null} ** small_bucket_count,
         large_allocations: LargeAllocTable = .{},
         empty_buckets: if (config.retain_metadata) Buckets else void =
             if (config.retain_metadata) Buckets{} else {},
@@ -183,8 +184,8 @@ pub fn GeneralPurposeAllocator(comptime config: Config) type {
         /// The initial state of a `GeneralPurposeAllocator`, containing no allocations and backed by the system page allocator.
         pub const init: Self = .{
             .backing_allocator = std.heap.page_allocator,
-            .buckets = [1]Buckets{.{}} ** small_bucket_count_max,
-            .cur_buckets = [1]?*BucketHeader{null} ** small_bucket_count_max,
+            .buckets = [1]Buckets{.{}} ** small_bucket_count,
+            .cur_buckets = [1]?*BucketHeader{null} ** small_bucket_count,
             .large_allocations = .{},
             .empty_buckets = if (config.retain_metadata) .{} else {},
             .bucket_node_pool = .init(std.heap.page_allocator),
@@ -211,25 +212,25 @@ pub fn GeneralPurposeAllocator(comptime config: Config) type {
 
         pub const Error = mem.Allocator.Error;
 
-        const small_bucket_count_max = math.log2(max_page_size);
-        const largest_bucket_object_size_max = 1 << (small_bucket_count_max - 1);
-        const LargestSizeClassInt = std.math.IntFittingRange(0, largest_bucket_object_size_max);
-        fn small_bucket_count() usize {
-            const cached = small_bucket_count_cache.load(.monotonic);
+        const small_bucket_count = math.log2(if (has_page_size_bounds) max_page_size else 4096);
+        const largest_bucket_object_size = 1 << (small_bucket_count - 1);
+        const LargestSizeClassInt = std.math.IntFittingRange(0, largest_bucket_object_size);
+        fn used_small_bucket_count() usize {
+            const cached = used_small_bucket_count_cache.load(.monotonic);
             if (cached != 0) {
                 return cached;
             }
-            const val = math.log2(pageSize());
-            small_bucket_count_cache.store(val, .monotonic);
+            const val = if (has_page_size_bounds) math.log2(pageSize()) else @min(math.log2(pageSize()), small_bucket_count);
+            used_small_bucket_count_cache.store(val, .monotonic);
             return val;
         }
-        fn largest_bucket_object_size() usize {
-            const cached = largest_bucket_object_size_cache.load(.monotonic);
+        fn largest_used_bucket_object_size() usize {
+            const cached = largest_used_bucket_object_size_cache.load(.monotonic);
             if (cached != 0) {
                 return cached;
             }
-            const val = @as(usize, 1) << @truncate(small_bucket_count() - 1);
-            largest_bucket_object_size_cache.store(val, .monotonic);
+            const val = @as(usize, 1) << @truncate(used_small_bucket_count() - 1);
+            largest_used_bucket_object_size_cache.store(val, .monotonic);
             return val;
         }
 
@@ -439,7 +440,7 @@ pub fn GeneralPurposeAllocator(comptime config: Config) type {
         pub fn detectLeaks(self: *Self) bool {
             var leaks = false;
 
-            for (0..small_bucket_count()) |bucket_i| {
+            for (0..used_small_bucket_count()) |bucket_i| {
                 const buckets = &self.buckets[bucket_i];
                 if (buckets.root == null) continue;
                 const size_class = @as(usize, 1) << @as(math.Log2Int(usize), @intCast(bucket_i));
@@ -753,14 +754,14 @@ pub fn GeneralPurposeAllocator(comptime config: Config) type {
             assert(old_mem.len != 0);
 
             const aligned_size = @max(old_mem.len, @as(usize, 1) << log2_old_align);
-            if (aligned_size > largest_bucket_object_size()) {
+            if (aligned_size > largest_used_bucket_object_size()) {
                 return self.resizeLarge(old_mem, log2_old_align, new_size, ret_addr);
             }
             const size_class_hint = math.ceilPowerOfTwoAssert(usize, aligned_size);
 
             var bucket_index = math.log2(size_class_hint);
             var size_class: usize = size_class_hint;
-            const bucket = while (bucket_index < small_bucket_count()) : (bucket_index += 1) {
+            const bucket = while (bucket_index < used_small_bucket_count()) : (bucket_index += 1) {
                 if (searchBucket(&self.buckets[bucket_index], @intFromPtr(old_mem.ptr), self.cur_buckets[bucket_index])) |bucket| {
                     break bucket;
                 }
@@ -871,7 +872,7 @@ pub fn GeneralPurposeAllocator(comptime config: Config) type {
             assert(old_mem.len != 0);
 
             const aligned_size = @max(old_mem.len, @as(usize, 1) << log2_old_align);
-            if (aligned_size > largest_bucket_object_size()) {
+            if (aligned_size > largest_used_bucket_object_size()) {
                 self.freeLarge(old_mem, log2_old_align, ret_addr);
                 return;
             }
@@ -879,7 +880,7 @@ pub fn GeneralPurposeAllocator(comptime config: Config) type {
 
             var bucket_index = math.log2(size_class_hint);
             var size_class: usize = size_class_hint;
-            const bucket = while (bucket_index < small_bucket_count()) : (bucket_index += 1) {
+            const bucket = while (bucket_index < used_small_bucket_count()) : (bucket_index += 1) {
                 if (searchBucket(&self.buckets[bucket_index], @intFromPtr(old_mem.ptr), self.cur_buckets[bucket_index])) |bucket| {
                     break bucket;
                 }
@@ -1016,7 +1017,7 @@ pub fn GeneralPurposeAllocator(comptime config: Config) type {
             ret_addr: usize,
         ) Allocator.Error![*]u8 {
             const new_aligned_size = @max(len, @as(usize, 1) << @as(Allocator.Log2Align, @intCast(log2_ptr_align)));
-            if (new_aligned_size > largest_bucket_object_size()) {
+            if (new_aligned_size > largest_used_bucket_object_size()) {
                 try self.large_allocations.ensureUnusedCapacity(self.backing_allocator, 1);
                 const ptr = self.backing_allocator.rawAlloc(len, log2_ptr_align, ret_addr) orelse
                     return error.OutOfMemory;
