@@ -318,7 +318,7 @@ var page_size_cache = std.atomic.Value(usize).init(0);
 
 /// Returns the system page size. If the page size is comptime-known, this function returns it directly. Otherwise, on first invocation, `pageSize()` queries the page size with the appropriate syscall. It then asserts that the page size is between `min_page_size` and `max_page_size`.
 pub fn pageSize() usize {
-    if (min_page_size == max_page_size) {
+    if (has_page_size_bounds and min_page_size == max_page_size) {
         return min_page_size;
     }
     return queryPageSize();
@@ -363,8 +363,10 @@ fn queryPageSize() usize {
             @compileError("querying page size on " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag) ++ " is not supported without linking libc"),
     };
 
-    assert(size >= min_page_size);
-    assert(size <= max_page_size);
+    if (has_page_size_bounds) {
+        assert(size >= min_page_size);
+        assert(size <= max_page_size);
+    }
     page_size_cache.store(size, .unordered);
 
     return size;
