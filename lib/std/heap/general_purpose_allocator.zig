@@ -106,11 +106,10 @@ const Allocator = std.mem.Allocator;
 const page_alignment = std.heap.page_alignment;
 const max_page_size = std.heap.max_page_size;
 const pageSize = std.heap.pageSize;
-const has_page_size_bounds = std.heap.has_page_size_bounds;
 const StackTrace = std.builtin.StackTrace;
 
 /// Integer type for pointing to slots in a small allocation
-const SlotIndex = std.meta.Int(.unsigned, math.log2(if (has_page_size_bounds) max_page_size else 4096) + 1);
+const SlotIndex = std.meta.Int(.unsigned, math.log2(max_page_size) + 1);
 
 const default_test_stack_trace_frames: usize = if (builtin.is_test) 10 else 6;
 const default_sys_stack_trace_frames: usize = if (std.debug.sys_can_stack_trace) default_test_stack_trace_frames else 0;
@@ -216,7 +215,7 @@ pub fn GeneralPurposeAllocator(comptime config: Config) type {
 
         pub const Error = mem.Allocator.Error;
 
-        const small_bucket_count = math.log2(if (has_page_size_bounds) max_page_size else 4096);
+        const small_bucket_count = math.log2(max_page_size);
         const largest_bucket_object_size = 1 << (small_bucket_count - 1);
         const LargestSizeClassInt = std.math.IntFittingRange(0, largest_bucket_object_size);
         fn used_small_bucket_count() usize {
@@ -224,7 +223,7 @@ pub fn GeneralPurposeAllocator(comptime config: Config) type {
             if (cached != 0) {
                 return cached;
             }
-            const val = if (has_page_size_bounds) math.log2(pageSize()) else @min(math.log2(pageSize()), small_bucket_count);
+            const val = math.log2(pageSize());
             used_small_bucket_count_cache.store(val, .monotonic);
             return val;
         }

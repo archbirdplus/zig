@@ -322,9 +322,6 @@ pub const max_page_size: usize = maybe_max_page_size orelse @compileError("The Z
 /// The actual page size can only be determined at runtime with `pageSize()`.
 pub const page_alignment = maybe_min_page_size orelse 1;
 
-/// Tells whether `min_page_size` and `max_page_size` can be used without a compile error.
-pub const has_page_size_bounds = maybe_min_page_size != null and maybe_max_page_size != null;
-
 // A cache used by `queryPageSize()` to avoid repeating syscalls.
 var page_size_cache = std.atomic.Value(usize).init(0);
 
@@ -333,7 +330,7 @@ var page_size_cache = std.atomic.Value(usize).init(0);
 /// If the page size is not comptime-known, `pageSize()` will cache the result of the appropriate syscall.
 /// `pageSize()` asserts that the page size lies between `min_page_size` and `max_page_size`.
 pub fn pageSize() usize {
-    if (has_page_size_bounds and min_page_size == max_page_size) {
+    if (min_page_size == max_page_size) {
         return min_page_size;
     }
     return queryPageSize();
@@ -378,10 +375,8 @@ fn queryPageSize() usize {
             @compileError("querying page size on " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag) ++ " is not supported without linking libc"),
     };
 
-    if (has_page_size_bounds) {
-        assert(size >= min_page_size);
-        assert(size <= max_page_size);
-    }
+    assert(size >= min_page_size);
+    assert(size <= max_page_size);
     page_size_cache.store(size, .unordered);
 
     return size;
