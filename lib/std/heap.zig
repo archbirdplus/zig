@@ -10,8 +10,8 @@ const windows = std.os.windows;
 
 const default_min_page_size: ?usize = switch (builtin.os.tag) {
     .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
+        .x86_64 => 4 << 10,
+        .aarch64 => 16 << 10,
         else => null,
     },
     .windows => switch (builtin.cpu.arch) {
@@ -156,8 +156,8 @@ const default_min_page_size: ?usize = switch (builtin.os.tag) {
 
 const default_max_page_size: ?usize = switch (builtin.os.tag) {
     .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
-        .x86, .x86_64 => 4 << 10,
-        .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
+        .x86_64 => 4 << 10,
+        .aarch64 => 16 << 10,
         else => null,
     },
     .windows => switch (builtin.cpu.arch) {
