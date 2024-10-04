@@ -300,21 +300,21 @@ const default_max_page_size: ?usize = switch (builtin.os.tag) {
 };
 
 /// The compile-time minimum page size that the target might have.
-/// If this value is not explicitly known to the standard library, using it will be a compile error.
-/// The actual page size can only be determined at runtime with `pageSize()`.
+/// All pointers from `mmap` or `VirtualAlloc` are aligned to at least `min_page_size`, but their
+/// actual alignment may be much bigger.
+/// This value can be overridden via `std.options.min_page_size`.
+/// On many systems, the actual page size can only be determined at runtime with `pageSize()`.
 pub const min_page_size: usize = std.options.min_page_size orelse default_min_page_size orelse @compileError("The Zig standard library is missing a min_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 
 /// The compile-time maximum page size that the target might have.
-/// If this value is not explicitly known to the standard library, using it will be a compile error.
+/// Targeting a system with a larger page size may require overriding `std.options.max_page_size`,
+/// as well as using the linker arugment `-z max-page-size=`.
 /// The actual page size can only be determined at runtime with `pageSize()`.
-/// TODO: update comment with std.Options
-/// Targeting a system with a larger page size requires modifying the standard library, as well as passing the linker argument `-z max-page-size=`.
 pub const max_page_size: usize = std.options.max_page_size orelse default_max_page_size orelse @compileError("The Zig standard library is missing a max_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 
 /// Returns the system page size.
 /// If the page size is comptime-known, `pageSize()` returns it directly.
-/// If the page size is not comptime-known, `pageSize()` will cache the result of the appropriate syscall.
-/// `pageSize()` asserts that the page size lies between `min_page_size` and `max_page_size`.
+/// Otherwise, `pageSize()` defers to `std.options.queryPageSizeFn()`.
 pub fn pageSize() usize {
     if (min_page_size == max_page_size) {
         return min_page_size;
@@ -325,8 +325,9 @@ pub fn pageSize() usize {
 // A cache used by `defaultQueryPageSize()` to avoid repeating syscalls.
 var page_size_cache = std.atomic.Value(usize).init(0);
 
-// Default querying function for `pageSize()`.
-pub fn defaultQueryPageSize() usize {
+// The default implementation in `std.options.queryPageSizeFn`.
+// The first time it is called, it asserts that the page size is within the comptime bounds.
+pub fn defaultQueryPageSizeFn() usize {
     var size = page_size_cache.load(.unordered);
     if (size > 0) return size;
     size = switch (builtin.os.tag) {
