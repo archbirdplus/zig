@@ -311,9 +311,6 @@ pub const min_page_size: usize = std.options.min_page_size orelse default_min_pa
 /// Targeting a system with a larger page size requires modifying the standard library, as well as passing the linker argument `-z max-page-size=`.
 pub const max_page_size: usize = std.options.max_page_size orelse default_max_page_size orelse @compileError("The Zig standard library is missing a max_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 
-// A cache used by `queryPageSize()` to avoid repeating syscalls.
-var page_size_cache = std.atomic.Value(usize).init(0);
-
 /// Returns the system page size.
 /// If the page size is comptime-known, `pageSize()` returns it directly.
 /// If the page size is not comptime-known, `pageSize()` will cache the result of the appropriate syscall.
@@ -322,11 +319,14 @@ pub fn pageSize() usize {
     if (min_page_size == max_page_size) {
         return min_page_size;
     }
-    return queryPageSize();
+    return std.options.queryPageSizeFn();
 }
 
-// Helper method for pageSize().
-fn queryPageSize() usize {
+// A cache used by `defaultQueryPageSize()` to avoid repeating syscalls.
+var page_size_cache = std.atomic.Value(usize).init(0);
+
+// Default querying function for `pageSize()`.
+pub fn defaultQueryPageSize() usize {
     var size = page_size_cache.load(.unordered);
     if (size > 0) return size;
     size = switch (builtin.os.tag) {

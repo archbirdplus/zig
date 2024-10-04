@@ -127,7 +127,7 @@ pub const Options = struct {
 
     min_page_size: ?usize = null,
     max_page_size: ?usize = null,
-    queryPageSize: fn () usize = heap.defaultQueryPageSize,
+    queryPageSizeFn: fn () usize = heap.defaultQueryPageSize,
 
     cryptoRandomSeed: fn (buffer: []u8) void = @import("crypto/tlcsprng.zig").defaultRandomSeed,
 
