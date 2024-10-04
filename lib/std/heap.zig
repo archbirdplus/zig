@@ -322,7 +322,7 @@ pub fn pageSize() usize {
     return std.options.queryPageSizeFn();
 }
 
-// A cache used by `defaultQueryPageSize()` to avoid repeating syscalls.
+// A cache used by `defaultQueryPageSizeFn()` to avoid repeating syscalls.
 var page_size_cache = std.atomic.Value(usize).init(0);
 
 // The default implementation in `std.options.queryPageSizeFn`.
@@ -1255,10 +1255,10 @@ test "pageSize() smoke test" {
     std.debug.assert(size & (size - 1) == 0);
 }
 
-test "queryPageSize() smoke test" {
+test "defaultQueryPageSizeFn() smoke test" {
     // queryPageSize() does not always get called by pageSize()
     if (builtin.cpu.arch.isWasm()) return error.SkipZigTest;
-    const size = queryPageSize();
+    const size = defaultQueryPageSizeFn();
     // Check that pageSize is a power of 2.
     std.debug.assert(size & (size - 1) == 0);
 }
