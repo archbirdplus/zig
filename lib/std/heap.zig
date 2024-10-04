@@ -8,7 +8,7 @@ const c = std.c;
 const Allocator = std.mem.Allocator;
 const windows = std.os.windows;
 
-const maybe_min_page_size: ?usize = switch (builtin.os.tag) {
+const default_min_page_size: ?usize = switch (builtin.os.tag) {
     .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
@@ -154,7 +154,7 @@ const maybe_min_page_size: ?usize = switch (builtin.os.tag) {
     else => null,
 };
 
-const maybe_max_page_size: ?usize = switch (builtin.os.tag) {
+const default_max_page_size: ?usize = switch (builtin.os.tag) {
     .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
         .x86, .x86_64 => 4 << 10,
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 16 << 10,
@@ -302,14 +302,14 @@ const maybe_max_page_size: ?usize = switch (builtin.os.tag) {
 /// The compile-time minimum page size that the target might have.
 /// If this value is not explicitly known to the standard library, using it will be a compile error.
 /// The actual page size can only be determined at runtime with `pageSize()`.
-pub const min_page_size: usize = maybe_min_page_size orelse @compileError("The Zig standard library is missing a min_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
+pub const min_page_size: usize = std.options.min_page_size orelse default_min_page_size orelse @compileError("The Zig standard library is missing a min_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 
 /// The compile-time maximum page size that the target might have.
 /// If this value is not explicitly known to the standard library, using it will be a compile error.
 /// The actual page size can only be determined at runtime with `pageSize()`.
-///
+/// TODO: update comment with std.Options
 /// Targeting a system with a larger page size requires modifying the standard library, as well as passing the linker argument `-z max-page-size=`.
-pub const max_page_size: usize = maybe_max_page_size orelse @compileError("The Zig standard library is missing a max_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
+pub const max_page_size: usize = std.options.max_page_size orelse default_max_page_size orelse @compileError("The Zig standard library is missing a max_page_size for " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag));
 
 // A cache used by `queryPageSize()` to avoid repeating syscalls.
 var page_size_cache = std.atomic.Value(usize).init(0);
