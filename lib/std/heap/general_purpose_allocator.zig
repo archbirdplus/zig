@@ -48,7 +48,7 @@
 //!
 //! ## Basic Design:
 //!
-//! Small allocations are divided into buckets. For a page size of 4K:
+//! Small allocations are divided into buckets. For a max page size of 4K:
 //!
 //! ```
 //! index obj_size
@@ -75,9 +75,8 @@
 //! BucketHeader, followed by "used bits", and two stack traces for each slot
 //! (allocation trace and free trace).
 //!
-//! The buckets array contains buckets for every size class below `max_page_size`,
-//! or below 4K if the target is missing page size bounds. At runtime, only size
-//! classes below `pageSize()` will actually be used for allocations.
+//! The buckets array contains buckets for every size class below `max_page_size`.
+//! At runtime, only size classes below `pageSize()` will actually be used for allocations.
 //!
 //! The "used bits" are 1 bit per slot representing whether the slot is used.
 //! Allocations use the data to iterate to find a free slot. Frees assert that the
