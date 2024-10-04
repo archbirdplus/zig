@@ -42,7 +42,6 @@ const maybe_min_page_size: ?usize = switch (builtin.os.tag) {
     },
     .netbsd => switch (builtin.cpu.arch) {
         // NetBSD/sys/arch/*
-        .arc => 4 << 10,
         .x86, .x86_64 => 4 << 10,
         .thumb, .thumbeb, .arm, .armeb => 4 << 10,
         .aarch64, .aarch64_be => 4 << 10,
@@ -64,7 +63,6 @@ const maybe_min_page_size: ?usize = switch (builtin.os.tag) {
         .x86, .x86_64 => 4 << 10,
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
         .mips64, .mips64el => 4 << 10,
-        .loongarch32, .loongarch64 => 16 << 10,
         .powerpc, .powerpc64, .powerpc64le, .powerpcle => 4 << 10,
         .riscv64 => 4 << 10,
         .sparc64 => 8 << 10,
@@ -190,7 +188,6 @@ const maybe_max_page_size: ?usize = switch (builtin.os.tag) {
     },
     .netbsd => switch (builtin.cpu.arch) {
         // NetBSD/sys/arch/*
-        .arc => 16 << 10,
         .x86, .x86_64 => 4 << 10,
         .thumb, .thumbeb, .arm, .armeb => 4 << 10,
         .aarch64, .aarch64_be => 64 << 10,
@@ -211,7 +208,6 @@ const maybe_max_page_size: ?usize = switch (builtin.os.tag) {
         .x86, .x86_64 => 4 << 10,
         .thumb, .thumbeb, .arm, .armeb, .aarch64, .aarch64_be => 4 << 10,
         .mips64, .mips64el => 16 << 10,
-        .loongarch32, .loongarch64 => 16 << 10,
         .powerpc, .powerpc64, .powerpc64le, .powerpcle => 4 << 10,
         .riscv64 => 4 << 10,
         .sparc64 => 8 << 10,
