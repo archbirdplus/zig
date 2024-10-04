@@ -304,21 +304,19 @@ const default_max_page_size: ?usize = switch (builtin.os.tag) {
 /// actual alignment may be much bigger.
 /// This value can be overridden via `std.options.min_page_size`.
 /// On many systems, the actual page size can only be determined at runtime with `pageSize()`.
-pub const min_page_size: usize = std.options.min_page_size orelse default_min_page_size orelse
-    if (builtin.os.tag == .freestanding or builtin.os.tag == .other)
-        @compileError("freestanding/other explicitly has no min_page_size. One can be provided with std.options.min_page_size")
-    else
-        @compileError(@tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag) ++ " has no min_page_size. One can be provided with std.options.min_page_size");
+pub const min_page_size: usize = std.options.min_page_size orelse default_min_page_size orelse if (builtin.os.tag == .freestanding or builtin.os.tag == .other)
+    @compileError("freestanding/other explicitly has no min_page_size. One can be provided with std.options.min_page_size")
+else
+    @compileError(@tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag) ++ " has no min_page_size. One can be provided with std.options.min_page_size");
 
 /// The compile-time maximum page size that the target might have.
 /// Targeting a system with a larger page size may require overriding `std.options.max_page_size`,
 /// as well as using the linker arugment `-z max-page-size=`.
 /// The actual page size can only be determined at runtime with `pageSize()`.
-pub const max_page_size: usize = std.options.max_page_size orelse default_max_page_size orelse
-    if (builtin.os.tag == .freestanding or builtin.os.tag == .other)
-        @compileError("freestanding/other explicitly has no max_page_size. One can be provided with std.options.max_page_size")
-    else
-        @compileError(@tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag) ++ " has no max_page_size. One can be provided with std.options.max_page_size");
+pub const max_page_size: usize = std.options.max_page_size orelse default_max_page_size orelse if (builtin.os.tag == .freestanding or builtin.os.tag == .other)
+    @compileError("freestanding/other explicitly has no max_page_size. One can be provided with std.options.max_page_size")
+else
+    @compileError(@tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag) ++ " has no max_page_size. One can be provided with std.options.max_page_size");
 
 /// Returns the system page size.
 /// If the page size is comptime-known, `pageSize()` returns it directly.
@@ -370,9 +368,9 @@ pub fn defaultQueryPageSizeFn() usize {
             else
                 @compileError("missing _SC.PAGESIZE declaration for " ++ @tagName(builtin.os.tag) ++ "-" ++ @tagName(builtin.os.tag))
         else if (builtin.os.tag == .freestanding or builtin.os.tag == .other)
-            @compileError("pageSize on freestanding/other is not supported with the default std.options.queryPageSizeFn");
+            @compileError("pageSize on freestanding/other is not supported with the default std.options.queryPageSizeFn")
         else
-            @compileError("pageSize on " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag) ++ " is not supported without linking libc, using the default implementation");
+            @compileError("pageSize on " ++ @tagName(builtin.cpu.arch) ++ "-" ++ @tagName(builtin.os.tag) ++ " is not supported without linking libc, using the default implementation"),
     };
 
     assert(size >= min_page_size);
