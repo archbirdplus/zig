@@ -9,7 +9,7 @@ const Allocator = std.mem.Allocator;
 const windows = std.os.windows;
 
 const default_min_page_size: ?usize = switch (builtin.os.tag) {
-    .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
+    .bridgeos, .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
         .x86_64 => 4 << 10,
         .aarch64 => 16 << 10,
         else => null,
@@ -155,7 +155,7 @@ const default_min_page_size: ?usize = switch (builtin.os.tag) {
 };
 
 const default_max_page_size: ?usize = switch (builtin.os.tag) {
-    .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
+    .bridgeos, .driverkit, .ios, .macos, .tvos, .visionos, .watchos => switch (builtin.cpu.arch) {
         .x86_64 => 4 << 10,
         .aarch64 => 16 << 10,
         else => null,
@@ -338,7 +338,7 @@ pub fn defaultQueryPageSizeFn() usize {
     if (size > 0) return size;
     size = switch (builtin.os.tag) {
         .linux => if (builtin.link_libc) @intCast(std.c.sysconf(@intFromEnum(std.c._SC.PAGESIZE))) else std.os.linux.getauxval(std.elf.AT_PAGESZ),
-        .driverkit, .ios, .macos, .tvos, .visionos, .watchos => blk: {
+        .bridgeos, .driverkit, .ios, .macos, .tvos, .visionos, .watchos => blk: {
             if (!builtin.link_libc)
                 @compileError("querying page size on Darwin is not supported without linking libc");
             const task_port = std.c.mach_task_self();

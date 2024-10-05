@@ -2208,7 +2208,7 @@ pub const SC = switch (native_os) {
 };
 
 pub const _SC = switch (native_os) {
-    .driverkit, .ios, .macos, .tvos, .visionos, .watchos => enum(c_int) {
+    .bridgeos, .driverkit, .ios, .macos, .tvos, .visionos, .watchos => enum(c_int) {
         PAGESIZE = 29,
     },
     .dragonfly => enum(c_int) {
