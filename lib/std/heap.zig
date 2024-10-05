@@ -339,8 +339,6 @@ pub fn defaultQueryPageSizeFn() usize {
     size = switch (builtin.os.tag) {
         .linux => if (builtin.link_libc) @intCast(std.c.sysconf(@intFromEnum(std.c._SC.PAGESIZE))) else std.os.linux.getauxval(std.elf.AT_PAGESZ),
         .bridgeos, .driverkit, .ios, .macos, .tvos, .visionos, .watchos => blk: {
-            if (!builtin.link_libc)
-                @compileError("querying page size on Darwin is not supported without linking libc");
             const task_port = std.c.mach_task_self();
             // mach_task_self may fail "if there are any resource failures or other errors".
             if (task_port == std.c.TASK_NULL)
