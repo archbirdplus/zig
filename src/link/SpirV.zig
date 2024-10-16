@@ -74,7 +74,6 @@ pub fn createEmpty(
             .file = null,
             .disable_lld_caching = options.disable_lld_caching,
             .build_id = options.build_id,
-            .rpath_list = options.rpath_list,
         },
         .object = codegen.Object.init(gpa),
     };
@@ -141,7 +140,7 @@ pub fn updateNav(self: *SpirV, pt: Zcu.PerThread, nav: InternPool.Nav.Index) !vo
     }
 
     const ip = &pt.zcu.intern_pool;
-    log.debug("lowering declaration {}", .{ip.getNav(nav).name.fmt(ip)});
+    log.debug("lowering nav {}({d})", .{ ip.getNav(nav).fqn.fmt(ip), nav });
 
     try self.object.updateNav(pt, nav);
 }

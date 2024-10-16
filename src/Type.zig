@@ -39,6 +39,7 @@ pub fn baseZigTypeTag(self: Type, mod: *Zcu) std.builtin.TypeId {
     };
 }
 
+/// Asserts the type is resolved.
 pub fn isSelfComparable(ty: Type, zcu: *const Zcu, is_equality_cmp: bool) bool {
     return switch (ty.zigTypeTag(zcu)) {
         .int,
@@ -62,7 +63,6 @@ pub fn isSelfComparable(ty: Type, zcu: *const Zcu, is_equality_cmp: bool) bool {
 
         .noreturn,
         .array,
-        .@"struct",
         .undefined,
         .null,
         .error_union,
@@ -70,6 +70,7 @@ pub fn isSelfComparable(ty: Type, zcu: *const Zcu, is_equality_cmp: bool) bool {
         .frame,
         => false,
 
+        .@"struct" => is_equality_cmp and ty.containerLayout(zcu) == .@"packed",
         .pointer => !ty.isSlice(zcu) and (is_equality_cmp or ty.isCPtr(zcu)),
         .optional => {
             if (!is_equality_cmp) return false;
@@ -1641,6 +1642,7 @@ pub fn maxIntAlignment(target: std.Target, use_llvm: bool) u16 {
         .avr => 1,
         .msp430 => 2,
         .xcore => 4,
+        .propeller1, .propeller2 => 4,
 
         .arm,
         .armeb,

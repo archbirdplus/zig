@@ -236,6 +236,17 @@ pub const AddressSpace = enum(u5) {
     flash3,
     flash4,
     flash5,
+
+    // Propeller address spaces.
+
+    /// This address space only addresses the cog-local ram.
+    cog,
+
+    /// This address space only addresses shared hub ram.
+    hub,
+
+    /// This address space only addresses the "lookup" ram
+    lut,
 };
 
 /// This data structure is used by the Zig language code generation and
@@ -609,6 +620,7 @@ pub const VaList = switch (builtin.cpu.arch) {
     .avr => *anyopaque,
     .bpfel, .bpfeb => *anyopaque,
     .hexagon => if (builtin.target.isMusl()) VaListHexagon else *u8,
+    .loongarch32, .loongarch64 => *anyopaque,
     .mips, .mipsel, .mips64, .mips64el => *anyopaque,
     .riscv32, .riscv64 => *anyopaque,
     .powerpc, .powerpcle => switch (builtin.os.tag) {

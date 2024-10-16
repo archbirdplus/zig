@@ -13,6 +13,12 @@ const warn = std.log.warn;
 const ThreadPool = std.Thread.Pool;
 const cleanExit = std.process.cleanExit;
 const native_os = builtin.os.tag;
+const Cache = std.Build.Cache;
+const Path = std.Build.Cache.Path;
+const EnvVar = std.zig.EnvVar;
+const LibCInstallation = std.zig.LibCInstallation;
+const AstGen = std.zig.AstGen;
+const Server = std.zig.Server;
 
 const tracy = @import("tracy.zig");
 const Compilation = @import("Compilation.zig");
@@ -20,16 +26,11 @@ const link = @import("link.zig");
 const Package = @import("Package.zig");
 const build_options = @import("build_options");
 const introspect = @import("introspect.zig");
-const EnvVar = std.zig.EnvVar;
-const LibCInstallation = std.zig.LibCInstallation;
 const wasi_libc = @import("wasi_libc.zig");
-const Cache = std.Build.Cache;
 const target_util = @import("target.zig");
 const crash_report = @import("crash_report.zig");
 const Zcu = @import("Zcu.zig");
-const AstGen = std.zig.AstGen;
 const mingw = @import("mingw.zig");
-const Server = std.zig.Server;
 const dev = @import("dev.zig");
 
 pub const std_options = .{
@@ -1703,8 +1704,11 @@ fn buildOutputType(
                         try cc_argv.append(arena, arg);
                     } else if (mem.startsWith(u8, arg, "-I")) {
                         try cssan.addIncludePath(arena, &cc_argv, .I, arg, arg[2..], true);
-                    } else if (mem.eql(u8, arg, "-x")) {
-                        const lang = args_iter.nextOrFatal();
+                    } else if (mem.startsWith(u8, arg, "-x")) {
+                        const lang = if (arg.len == "-x".len)
+                            args_iter.nextOrFatal()
+                        else
+                            arg["-x".len..];
                         if (mem.eql(u8, lang, "none")) {
                             file_ext = null;
                         } else if (Compilation.LangToExt.get(lang)) |got_ext| {
@@ -1721,14 +1725,14 @@ fn buildOutputType(
                     }
                 } else switch (file_ext orelse Compilation.classifyFileExt(arg)) {
                     .shared_library => {
-                        try create_module.link_objects.append(arena, .{ .path = arg });
+                        try create_module.link_objects.append(arena, .{ .path = Path.initCwd(arg) });
                         create_module.opts.any_dyn_libs = true;
                     },
                     .object, .static_library => {
-                        try create_module.link_objects.append(arena, .{ .path = arg });
+                        try create_module.link_objects.append(arena, .{ .path = Path.initCwd(arg) });
                     },
                     .res => {
-                        try create_module.link_objects.append(arena, .{ .path = arg });
+                        try create_module.link_objects.append(arena, .{ .path = Path.initCwd(arg) });
                         contains_res_file = true;
                     },
                     .manifest => {
@@ -1842,20 +1846,20 @@ fn buildOutputType(
                         },
                         .shared_library => {
                             try create_module.link_objects.append(arena, .{
-                                .path = it.only_arg,
+                                .path = Path.initCwd(it.only_arg),
                                 .must_link = must_link,
                             });
                             create_module.opts.any_dyn_libs = true;
                         },
                         .unknown, .object, .static_library => {
                             try create_module.link_objects.append(arena, .{
-                                .path = it.only_arg,
+                                .path = Path.initCwd(it.only_arg),
                                 .must_link = must_link,
                             });
                         },
                         .res => {
                             try create_module.link_objects.append(arena, .{
-                                .path = it.only_arg,
+                                .path = Path.initCwd(it.only_arg),
                                 .must_link = must_link,
                             });
                             contains_res_file = true;
@@ -1891,7 +1895,7 @@ fn buildOutputType(
                             // binary: no extra rpaths and DSO filename exactly
                             // as provided. Hello, Go.
                             try create_module.link_objects.append(arena, .{
-                                .path = it.only_arg,
+                                .path = Path.initCwd(it.only_arg),
                                 .must_link = must_link,
                                 .loption = true,
                             });
@@ -2529,7 +2533,7 @@ fn buildOutputType(
                     install_name = linker_args_it.nextOrFatal();
                 } else if (mem.eql(u8, arg, "-force_load")) {
                     try create_module.link_objects.append(arena, .{
-                        .path = linker_args_it.nextOrFatal(),
+                        .path = Path.initCwd(linker_args_it.nextOrFatal()),
                         .must_link = true,
                     });
                 } else if (mem.eql(u8, arg, "-hash-style") or
@@ -2704,7 +2708,7 @@ fn buildOutputType(
                 break :b create_module.c_source_files.items[0].src_path;
 
             if (create_module.link_objects.items.len >= 1)
-                break :b create_module.link_objects.items[0].path;
+                break :b create_module.link_objects.items[0].path.sub_path;
 
             if (emit_bin == .yes)
                 break :b emit_bin.yes;
@@ -2960,7 +2964,7 @@ fn buildOutputType(
                     framework_dir_path,
                     framework_name,
                 )) {
-                    const path = try arena.dupe(u8, test_path.items);
+                    const path = Path.initCwd(try arena.dupe(u8, test_path.items));
                     try resolved_frameworks.append(.{
                         .needed = info.needed,
                         .weak = info.weak,
@@ -3632,7 +3636,7 @@ const CreateModule = struct {
         name: []const u8,
         lib: Compilation.SystemLib,
     }),
-    wasi_emulated_libs: std.ArrayListUnmanaged(wasi_libc.CRTFile),
+    wasi_emulated_libs: std.ArrayListUnmanaged(wasi_libc.CrtFile),
 
     c_source_files: std.ArrayListUnmanaged(Compilation.CSourceFile),
     rc_source_files: std.ArrayListUnmanaged(Compilation.RcSourceFile),
@@ -3805,7 +3809,7 @@ fn createModule(
             }
 
             if (target.os.tag == .wasi) {
-                if (wasi_libc.getEmulatedLibCRTFile(lib_name)) |crt_file| {
+                if (wasi_libc.getEmulatedLibCrtFile(lib_name)) |crt_file| {
                     try create_module.wasi_emulated_libs.append(arena, crt_file);
                     continue;
                 }
@@ -3873,7 +3877,7 @@ fn createModule(
             };
         }
 
-        if (builtin.target.os.tag == .windows and target.abi == .msvc and
+        if (builtin.target.os.tag == .windows and (target.abi == .msvc or target.abi == .itanium) and
             external_system_libs.len != 0)
         {
             if (create_module.libc_installation == null) {
@@ -3926,7 +3930,7 @@ fn createModule(
                                 target,
                                 info.preferred_mode,
                             )) {
-                                const path = try arena.dupe(u8, test_path.items);
+                                const path = Path.initCwd(try arena.dupe(u8, test_path.items));
                                 switch (info.preferred_mode) {
                                     .static => try create_module.link_objects.append(arena, .{ .path = path }),
                                     .dynamic => try create_module.resolved_system_libs.append(arena, .{
@@ -3960,7 +3964,7 @@ fn createModule(
                                 target,
                                 info.fallbackMode(),
                             )) {
-                                const path = try arena.dupe(u8, test_path.items);
+                                const path = Path.initCwd(try arena.dupe(u8, test_path.items));
                                 switch (info.fallbackMode()) {
                                     .static => try create_module.link_objects.append(arena, .{ .path = path }),
                                     .dynamic => try create_module.resolved_system_libs.append(arena, .{
@@ -3994,7 +3998,7 @@ fn createModule(
                                 target,
                                 info.preferred_mode,
                             )) {
-                                const path = try arena.dupe(u8, test_path.items);
+                                const path = Path.initCwd(try arena.dupe(u8, test_path.items));
                                 switch (info.preferred_mode) {
                                     .static => try create_module.link_objects.append(arena, .{ .path = path }),
                                     .dynamic => try create_module.resolved_system_libs.append(arena, .{
@@ -4018,7 +4022,7 @@ fn createModule(
                                 target,
                                 info.fallbackMode(),
                             )) {
-                                const path = try arena.dupe(u8, test_path.items);
+                                const path = Path.initCwd(try arena.dupe(u8, test_path.items));
                                 switch (info.fallbackMode()) {
                                     .static => try create_module.link_objects.append(arena, .{ .path = path }),
                                     .dynamic => try create_module.resolved_system_libs.append(arena, .{
@@ -6114,6 +6118,7 @@ fn cmdAstCheck(
 
     var file: Zcu.File = .{
         .status = .never_loaded,
+        .prev_status = .never_loaded,
         .source_loaded = false,
         .tree_loaded = false,
         .zir_loaded = false,
@@ -6160,7 +6165,7 @@ fn cmdAstCheck(
     }
 
     file.mod = try Package.Module.createLimited(arena, .{
-        .root = Cache.Path.cwd(),
+        .root = Path.cwd(),
         .root_src_path = file.sub_file_path,
         .fully_qualified_name = "root",
     });
@@ -6295,7 +6300,7 @@ fn detectNativeCpuWithLLVM(
     llvm_cpu_name_z: ?[*:0]const u8,
     llvm_cpu_features_opt: ?[*:0]const u8,
 ) !std.Target.Cpu {
-    var result = std.Target.Cpu.baseline(arch);
+    var result = std.Target.Cpu.baseline(arch, builtin.os);
 
     if (llvm_cpu_name_z) |cpu_name_z| {
         const llvm_cpu_name = mem.span(cpu_name_z);
@@ -6437,6 +6442,7 @@ fn cmdDumpZir(
 
     var file: Zcu.File = .{
         .status = .never_loaded,
+        .prev_status = .never_loaded,
         .source_loaded = false,
         .tree_loaded = false,
         .zir_loaded = true,
@@ -6504,6 +6510,7 @@ fn cmdChangelist(
 
     var file: Zcu.File = .{
         .status = .never_loaded,
+        .prev_status = .never_loaded,
         .source_loaded = false,
         .tree_loaded = false,
         .zir_loaded = false,
@@ -6520,7 +6527,7 @@ fn cmdChangelist(
     };
 
     file.mod = try Package.Module.createLimited(arena, .{
-        .root = Cache.Path.cwd(),
+        .root = Path.cwd(),
         .root_src_path = file.sub_file_path,
         .fully_qualified_name = "root",
     });
@@ -7217,7 +7224,7 @@ fn cmdFetch(
         const location_replace = try std.fmt.allocPrint(
             arena,
             "\"{}\"",
-            .{std.zig.fmtEscapes(path_or_url)},
+            .{std.zig.fmtEscapes(saved_path_or_url)},
         );
         const hash_replace = try std.fmt.allocPrint(
             arena,
